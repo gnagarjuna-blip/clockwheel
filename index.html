@@ -1,0 +1,173 @@
+<script>
+    // WHEEL: Row 1 followed by Row 2 (7 onwards) as a continuous clockwise loop
+    const wheel = [
+        0, 1, 13, 25, 2, 14, 26, 3, 15, 27, 4, 16, 28, 5, 17, 29, 6, 18, 30,
+        7, 19, 31, 8, 20, 32, 9, 21, 33, 10, 22, 34, 11, 23, 35, 12, 24, 36
+    ];
+
+    const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+    
+    let spins = [], distanceHistory = [], predictionLog = [], betStack = [];
+    let bankroll = 1000, startBank = 1000, mult = 1, peakBalance = 1000;
+    let currentLosses = 0, currentWins = 0;
+    let historyState = [];
+
+    // Initialize UI Buttons
+    const bg = document.getElementById('btns');
+    bg.innerHTML = '<button class="n-btn g" style="grid-row: span 3;" onclick="press(0)">0</button>';
+    for(let i=1; i<=36; i++) {
+        const b = document.createElement('button');
+        b.className = `n-btn ${reds.includes(i) ? 'r' : 'b'}`;
+        b.innerText = i; b.onclick = () => press(i);
+        bg.appendChild(b);
+    }
+
+    function syncBank() {
+        startBank = parseFloat(document.getElementById('start-bank').value) || 0;
+        bankroll = startBank;
+        if(bankroll > peakBalance) peakBalance = bankroll;
+        updateUI();
+    }
+
+    function toggleDistInput() {
+        const mode = document.getElementById('dist-mode').value;
+        document.getElementById('fixed-dist-val').disabled = (mode === 'hot');
+    }
+
+    function saveState() {
+        historyState.push(JSON.stringify({ spins: [...spins], distanceHistory: [...distanceHistory], predictionLog: [...predictionLog], betStack: [...betStack], bankroll, mult, peakBalance, currentLosses, currentWins }));
+        if(historyState.length > 50) historyState.shift();
+    }
+
+    function undoLast() {
+        if(historyState.length === 0) return;
+        Object.assign(window, JSON.parse(historyState.pop()));
+        updateUI();
+    }
+
+    function resetSession() {
+        startBank = parseFloat(document.getElementById('start-bank').value) || 1000;
+        bankroll = startBank; peakBalance = startBank; mult = 1; 
+        currentLosses = 0; currentWins = 0;
+        spins = []; distanceHistory = []; predictionLog = []; betStack = [];
+        updateUI();
+    }
+
+    function getSelectedPredictions(targetNum) {
+        let list = [];
+        if (targetNum === 0) {
+             if(document.getElementById('play-su').checked) list.push({ label: "0", type: "Straight Up", nums: [0], pay: 36 });
+             return list;
+        }
+        let n = parseInt(targetNum);
+        let dsIdx = Math.floor((n-1)/6);
+        let stIdx = Math.floor((n-1)/3);
+        let dozIdx = Math.ceil(n/12);
+        
+        if(document.getElementById('play-ds').checked) list.push({ label: `DS ${dsIdx+1}`, type: "D-Street", nums: Array.from({length: 6}, (_, i) => dsIdx*6+1+i), pay: 6 });
+        if(document.getElementById('play-st').checked) list.push({ label: `ST ${stIdx+1}`, type: "Street", nums: Array.from({length: 3}, (_, i) => stIdx*3+1+i), pay: 12 });
+        if(document.getElementById('play-doz').checked) list.push({ label: `DOZ ${dozIdx}`, type: "Dozen", nums: Array.from({length: 12}, (_, i) => (dozIdx-1)*12+1+i), pay: 3 });
+        if(document.getElementById('play-su').checked) list.push({ label: `#${n}`, type: "Straight Up", nums: [n], pay: 36 });
+        
+        return list;
+    }
+
+    function press(val) {
+        saveState();
+        let unit = parseFloat(document.getElementById('base-unit').value);
+        let maxAllowedMult = parseInt(document.getElementById('max-mult').value);
+
+        if (betStack.length > 0) {
+            let totalStake = betStack.length * unit * mult;
+            bankroll -= totalStake;
+
+            let hitBet = betStack.find(b => b.nums.includes(val));
+            let isWin = !!hitBet;
+
+            if (isWin) {
+                bankroll += (unit * mult * hitBet.pay);
+                currentLosses = 0;
+                currentWins++;
+                if (currentWins % parseInt(document.getElementById('win-step').value) === 0) mult = Math.max(1, mult - 1);
+                betStack = []; 
+            } else {
+                currentWins = 0;
+                currentLosses++;
+                if (currentLosses % parseInt(document.getElementById('loss-step').value) === 0) {
+                    mult = Math.min(maxAllowedMult, mult + 1);
+                }
+            }
+            if(bankroll > peakBalance) peakBalance = bankroll;
+            predictionLog.unshift({ res: val, win: isWin, cost: totalStake });
+        }
+
+        spins.push(val);
+        if (spins.length >= 2) {
+            const last = spins[spins.length-1];
+            const prev = spins[spins.length-2];
+            // Calc distance using the new 0 -> 30 -> 7 -> 36 path
+            const d = (wheel.indexOf(last) - wheel.indexOf(prev) + 37) % 37;
+            distanceHistory.push(d);
+        }
+
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('stat-balance').innerText = bankroll.toFixed(0);
+        document.getElementById('stat-profit').innerText = (bankroll - startBank).toFixed(0);
+        document.getElementById('stat-peak').innerText = peakBalance.toFixed(0);
+        document.getElementById('stat-mult').innerText = mult;
+
+        if (spins.length >= 2) {
+            const lastNum = spins[spins.length-1];
+            const mode = document.getElementById('dist-mode').value;
+            
+            let fMap = {};
+            distanceHistory.forEach(d => fMap[d] = (fMap[d] || 0) + 1);
+            let sortedFreqs = Object.entries(fMap).sort((a,b) => b[1]-a[1]);
+            
+            let activeDistance = (mode === 'hot' && sortedFreqs.length > 0) ? 
+                                 parseInt(sortedFreqs[0][0]) : 
+                                 parseInt(document.getElementById('fixed-dist-val').value) || 0;
+
+            document.getElementById('stat-hot-dist').innerText = activeDistance;
+
+            let targetNum = wheel[(wheel.indexOf(lastNum) + activeDistance) % 37];
+            let newBatch = getSelectedPredictions(targetNum);
+            
+            newBatch.forEach(nb => {
+                if(!betStack.some(ob => ob.label === nb.label)) {
+                    betStack.push(nb);
+                }
+            });
+
+            document.getElementById('stat-active-count').innerText = betStack.length;
+
+            document.getElementById('bet-display').innerHTML = betStack.map(g => `
+                <div class="bet-individual-card">
+                    <div class="bet-info">${g.type}</div>
+                    <div class="bet-label">${g.label}</div>
+                    <div class="bet-nums">Units: ${mult}</div>
+                </div>
+            `).join('');
+
+            document.getElementById('dist-log').innerHTML = `<strong>Latest CW Dists</strong><br>` + distanceHistory.slice(-10).reverse().map(d => `<div>${d}</div>`).join('');
+            document.getElementById('freq-rank').innerHTML = `<strong>Freq Ranking</strong><br>` + sortedFreqs.slice(0, 10).map(x => `<div>D${x[0]}: ${x[1]}x</div>`).join('');
+        }
+
+        document.getElementById('bet-history').innerHTML = predictionLog.slice(0, 5).map(l => 
+            `<div style="border-bottom:1px solid #eee; padding:3px">
+                Spin ${l.res}: ${l.win?'<span style="color:var(--win); font-weight:bold">HIT</span>':'<span style="color:var(--loss)">MISS</span>'} 
+                <small style="float:right; color:#7f8c8d">Stake: ${l.cost.toFixed(0)}</small>
+            </div>`).join('');
+    }
+
+    function runBulk() {
+        const input = document.getElementById('bulk-input').value;
+        const numbers = input.split(/[,\s\n]+/).filter(x => x !== "").map(Number);
+        numbers.forEach(n => press(n));
+    }
+
+    resetSession();
+</script>
