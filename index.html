@@ -3,286 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BIET Pro - Corrected Custom Wheel</title>
+    <title>CO-PO / PSO Attainment Generator</title>
     <style>
-        :root { 
-            --bg: #f0f2f5; --dark: #1e272e; --accent: #00d2d3; 
-            --win: #1dd1a1; --loss: #ff6b6b; --ready: #0984e3;
-        }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 1150px; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        body { font-family: 'Times New Roman', serif; margin: 20px; line-height: 1.4; color: #333; }
+        .container { max-width: 1000px; margin: auto; border: 1px solid #ccc; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+        h1 { font-size: 18px; margin: 5px; text-transform: uppercase; }
+        h2 { font-size: 14px; margin: 5px; text-decoration: underline; }
         
-        .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 15px; background: #dfe6e9; padding: 12px; border-radius: 10px; }
-        .config-group { display: flex; flex-direction: column; }
-        .config-group label { font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #4b6584; }
-        .config-group input, .config-group select { padding: 6px; border-radius: 4px; border: 1px solid #b2bec3; font-weight: bold; font-size: 12px; }
-
-        .market-selector { display: flex; gap: 15px; background: #f8f9fa; padding: 10px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #ddd; }
-        .market-option { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: bold; cursor: pointer; }
-
-        .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 15px; }
-        .stat-card { background: var(--dark); color: white; padding: 10px; border-radius: 8px; text-align: center; border-bottom: 3px solid var(--accent); }
-        .stat-val { font-size: 14px; font-weight: bold; display: block; color: var(--accent); }
-
-        .num-grid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 4px; margin-bottom: 15px; }
-        .n-btn { padding: 12px 0; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .n-btn:hover { opacity: 0.8; transform: scale(0.95); }
-        .r { background: #e84118; } .b { background: #2f3640; } .g { background: #44bd32; }
-
-        .main-layout { display: grid; grid-template-columns: 1fr 320px; gap: 15px; }
-        .card { padding: 15px; border-radius: 12px; border: 1px solid #ddd; background: #fff; margin-bottom: 10px; }
+        .form-section { background: #f9f9f9; padding: 15px; border: 1px dashed #999; margin-bottom: 20px; }
+        .grid-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         
-        .bet-display-area { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
-        .bet-individual-card { 
-            background: #fff; border: 1px solid #e0e0e0; border-left: 4px solid var(--accent);
-            border-radius: 8px; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            display: flex; flex-direction: column; justify-content: space-between;
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+        th { background-color: #f2f2f2; text-align: center; }
+        .input-cell { width: 40px; text-align: center; border: none; background: transparent; }
+        
+        .legend { font-size: 11px; color: red; font-style: italic; margin-top: 5px; }
+        .average-row { font-weight: bold; background: #eee; }
+        
+        @media print {
+            .no-print { display: none; }
+            .container { border: none; box-shadow: none; }
         }
-        .bet-individual-card .bet-label { font-size: 16px; font-weight: 900; color: #2d3436; }
-        .bet-individual-card .bet-info { font-size: 10px; color: #636e72; text-transform: uppercase; letter-spacing: 0.5px; }
-        .bet-individual-card .bet-nums { font-size: 9px; color: #b2bec3; margin-top: 4px; }
-
-        .tracker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 220px; }
-        .scroll-list { overflow-y: auto; font-size: 11px; border: 1px solid #f1f2f6; border-radius: 5px; padding: 5px; }
-
-        textarea { width: 100%; height: 60px; padding: 10px; border-radius: 5px; margin-top: 10px; box-sizing: border-box; border: 1px solid #ddd; }
-        .btn-row { display: flex; gap: 10px; margin-top: 10px; }
-        .btn { padding: 10px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; flex: 1; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="config-grid">
-        <div class="config-group"><label>Start Bank</label><input type="number" id="start-bank" value="1000" onchange="syncBank()"></div>
-        <div class="config-group"><label>Base Unit</label><input type="number" id="base-unit" value="1"></div>
-        <div class="config-group"><label>Max Multi</label><input type="number" id="max-mult" value="100"></div>
-        <div class="config-group"><label>Loss Step</label><input type="number" id="loss-step" value="2"></div>
-        <div class="config-group"><label>Win Step</label><input type="number" id="win-step" value="1"></div>
-        <div class="config-group">
-            <label>Dist Mode</label>
-            <select id="dist-mode" onchange="toggleDistInput()">
-                <option value="hot">Dynamic (Hot)</option>
-                <option value="fixed">Fixed Dist</option>
-            </select>
-        </div>
-        <div class="config-group">
-            <label>Fixed Val</label>
-            <input type="number" id="fixed-dist-val" value="1" disabled min="0" max="36">
-        </div>
+    <div class="no-print form-section">
+        <h3>Input Panel</h3>
+        <p>Update the course details and enter mapping strengths (1, 2, or 3) in the table below.</p>
+        <button onclick="window.print()">Print to PDF</button>
     </div>
 
-    <div class="market-selector">
-        <label class="market-option"><input type="checkbox" id="play-ds" checked> D-Street</label>
-        <label class="market-option"><input type="checkbox" id="play-st"> Street</label>
-        <label class="market-option"><input type="checkbox" id="play-doz"> Dozen</label>
-        <label class="market-option"><input type="checkbox" id="play-su"> Straight Up</label>
+    <header>
+        <h1>BHARAT INSTITUTE OF ENGINEERING AND TECHNOLOGY</h1>
+        <h2>Department of Electronics and Communication Engineering</h2>
+        <p>Computation of CO-PO / PSO Attainment<br>Academic Year: 2025-26</p>
+    </header>
+
+    <div class="grid-info">
+        <div><strong>Course:</strong> CONTROL SYSTEM</div>
+        <div><strong>Course Code:</strong> EC503PC</div>
+        <div><strong>Class:</strong> III - I ECE</div>
+        <div><strong>Regulations:</strong> R22</div>
     </div>
 
-    <div class="stats-bar">
-        <div class="stat-card">Balance<span id="stat-balance" class="stat-val">1000</span></div>
-        <div class="stat-card">Peak Balance<span id="stat-peak" class="stat-val">1000</span></div>
-        <div class="stat-card">Profit<span id="stat-profit" class="stat-val">0</span></div>
-        <div class="stat-card">Multiplier<span id="stat-mult" class="stat-val">1</span></div>
-        <div class="stat-card">Calc Dist<span id="stat-hot-dist" class="stat-val">--</span></div>
-        <div class="stat-card">Total Stack<span id="stat-active-count" class="stat-val">0</span></div>
-    </div>
+    <section>
+        <h4>Current Course Description</h4>
+        <p style="font-size: 13px; text-align: justify; border: 1px solid #000; padding: 10px;">
+            It provides a comprehensive foundation in control systems, beginning with the mathematical modeling of physical systems and the fundamental distinction between open-loop and closed-loop feedback structures. It explores time-response analysis and stability determination through essential tools like the Routh-Hurwitz criteria and the Root-Locus technique...
+        </p>
+    </section>
 
-    <div class="num-grid" id="btns"><button class="n-btn g" style="grid-row: span 3;" onclick="press(0)">0</button></div>
+    <h4>CO-PO Matrix <span class="legend">(1: Slight, 2: Moderate, 3: Substantial)</span></h4>
+    <table id="attainmentTable">
+        <thead>
+            <tr>
+                <th rowspan="2">Course Outcomes (COs)</th>
+                <th colspan="11">Program Outcomes (POs)</th>
+                <th colspan="3">PSOs</th>
+            </tr>
+            <tr>
+                <th>PO1</th><th>PO2</th><th>PO3</th><th>PO4</th><th>PO5</th><th>PO6</th><th>PO7</th><th>PO8</th><th>PO9</th><th>PO10</th><th>PO11</th>
+                <th>PSO1</th><th>PSO2</th><th>PSO3</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>CO1: Model LTI systems...</td>
+                <td><input type="number" class="input-cell po-col-1" value="3"></td>
+                <td><input type="number" class="input-cell po-col-2" value="3"></td>
+                <td><input type="number" class="input-cell po-col-3" value="2"></td>
+                <td><input type="number" class="input-cell po-col-4" value="2"></td>
+                <td><input type="number" class="input-cell po-col-5" value=""></td>
+                <td><input type="number" class="input-cell po-col-6" value="2"></td>
+                <td><input type="number" class="input-cell po-col-7" value="1"></td>
+                <td><input type="number" class="input-cell po-col-8" value=""></td>
+                <td><input type="number" class="input-cell po-col-9" value=""></td>
+                <td><input type="number" class="input-cell po-col-10" value=""></td>
+                <td><input type="number" class="input-cell po-col-11" value=""></td>
+                <td><input type="number" class="input-cell pso-col-1" value="2"></td>
+                <td><input type="number" class="input-cell pso-col-2" value="3"></td>
+                <td><input type="number" class="input-cell pso-col-3" value=""></td>
+            </tr>
+            <tr>
+                <td>CO2: Understand stability...</td>
+                <td><input type="number" class="input-cell po-col-1" value="3"></td>
+                <td><input type="number" class="input-cell po-col-2" value="2"></td>
+                <td><input type="number" class="input-cell po-col-3" value="3"></td>
+                <td><input type="number" class="input-cell po-col-4" value="2"></td>
+                <td><input type="number" class="input-cell po-col-5" value=""></td>
+                <td><input type="number" class="input-cell po-col-6" value="2"></td>
+                <td><input type="number" class="input-cell po-col-7" value="1"></td>
+                <td><input type="number" class="input-cell po-col-8" value=""></td>
+                <td><input type="number" class="input-cell po-col-9" value=""></td>
+                <td><input type="number" class="input-cell po-col-10" value=""></td>
+                <td><input type="number" class="input-cell po-col-11" value=""></td>
+                <td><input type="number" class="input-cell pso-col-1" value="3"></td>
+                <td><input type="number" class="input-cell pso-col-2" value="2"></td>
+                <td><input type="number" class="input-cell pso-col-3" value=""></td>
+            </tr>
+            <tr class="average-row">
+                <td>Average</td>
+                <td id="avg-po1">3</td><td id="avg-po2">2.5</td><td id="avg-po3">2.5</td><td id="avg-po4">2</td><td id="avg-po5">-</td>
+                <td id="avg-po6">2</td><td id="avg-po7">1</td><td id="avg-po8">-</td><td id="avg-po9">-</td><td id="avg-po10">-</td>
+                <td id="avg-po11">-</td><td id="avg-pso1">2.5</td><td id="avg-pso2">2.5</td><td id="avg-pso3">-</td>
+            </tr>
+        </tbody>
+    </table>
 
-    <div class="main-layout">
-        <div>
-            <div class="card" style="border-top: 5px solid var(--ready);">
-                <strong>Current Active Bets</strong> (Place these now)
-                <div id="bet-display" class="bet-display-area"></div>
-            </div>
-            <div class="card">
-                <strong>History</strong><hr>
-                <div id="bet-history" style="font-size: 11px;"></div>
-            </div>
-        </div>
-
-        <div class="card">
-            <strong>Clockwise Tracker</strong><hr>
-            <div class="tracker-grid">
-                <div class="scroll-list" id="dist-log"><strong>Latest Dists</strong><br></div>
-                <div class="scroll-list" id="freq-rank"><strong>Freq Ranking</strong><br></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card" style="background:#f8f9fa">
-        <strong>Bulk Simulation</strong>
-        <textarea id="bulk-input" placeholder="Enter numbers separated by space or comma"></textarea>
-        <div class="btn-row">
-            <button class="btn" style="background:var(--ready)" onclick="runBulk()">SIMULATE ALL</button>
-            <button class="btn" style="background:#636e72" onclick="undoLast()">UNDO</button>
-            <button class="btn" style="background:#d63031" onclick="resetSession()">RESET</button>
-        </div>
+    <div style="margin-top: 30px;">
+        <h4>Course Outcomes Target Levels:</h4>
+        <table style="border: none;">
+            <tr style="color: red;">
+                <td>Attainment Level 1: 50% students scoring pass marks...</td>
+            </tr>
+            <tr style="color: red;">
+                <td>Attainment Level 2: 60% students scoring pass marks...</td>
+            </tr>
+            <tr style="color: red;">
+                <td>Attainment Level 3: 70% students scoring pass marks...</td>
+            </tr>
+        </table>
     </div>
 </div>
 
 <script>
-    // WHEEL: 0->30 (Row 1), then 7->36 (Row 2)
-    const wheel = [
-        0, 1, 13, 25, 2, 14, 26, 3, 15, 27, 4, 16, 28, 5, 17, 29, 6, 18, 30,
-        7, 19, 31, 8, 20, 32, 9, 21, 33, 10, 22, 34, 11, 23, 35, 12, 24, 36
-    ];
+    // Logic to calculate averages dynamically as user types
+    document.querySelectorAll('.input-cell').forEach(input => {
+        input.addEventListener('input', calculateAverages);
+    });
 
-    const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-    let spins = [], distanceHistory = [], predictionLog = [], betStack = [];
-    let bankroll = 1000, startBank = 1000, mult = 1, peakBalance = 1000;
-    let currentLosses = 0, currentWins = 0;
-    let historyState = [];
+    function calculateAverages() {
+        const columns = [
+            'po-col-1', 'po-col-2', 'po-col-3', 'po-col-4', 'po-col-5', 
+            'po-col-6', 'po-col-7', 'po-col-8', 'po-col-9', 'po-col-10', 'po-col-11',
+            'pso-col-1', 'pso-col-2', 'pso-col-3'
+        ];
 
-    const bg = document.getElementById('btns');
-    for(let i=1; i<=36; i++) {
-        const b = document.createElement('button');
-        b.className = `n-btn ${reds.includes(i) ? 'r' : 'b'}`;
-        b.innerText = i; b.onclick = () => press(i);
-        bg.appendChild(b);
-    }
-
-    function syncBank() {
-        startBank = parseFloat(document.getElementById('start-bank').value) || 0;
-        bankroll = startBank; updateUI();
-    }
-
-    function toggleDistInput() {
-        document.getElementById('fixed-dist-val').disabled = (document.getElementById('dist-mode').value === 'hot');
-    }
-
-    function saveState() {
-        historyState.push(JSON.stringify({ spins: [...spins], distanceHistory: [...distanceHistory], predictionLog: [...predictionLog], betStack: [...betStack], bankroll, mult, peakBalance, currentLosses, currentWins }));
-        if(historyState.length > 50) historyState.shift();
-    }
-
-    function undoLast() {
-        if(historyState.length === 0) return;
-        Object.assign(window, JSON.parse(historyState.pop()));
-        updateUI();
-    }
-
-    function resetSession() {
-        startBank = parseFloat(document.getElementById('start-bank').value) || 1000;
-        bankroll = startBank; peakBalance = startBank; mult = 1; 
-        currentLosses = 0; currentWins = 0;
-        spins = []; distanceHistory = []; predictionLog = []; betStack = [];
-        updateUI();
-    }
-
-    function getSelectedPredictions(targetNum) {
-        let list = [];
-        if (targetNum === 0) {
-             if(document.getElementById('play-su').checked) list.push({ label: "0", type: "Straight Up", nums: [0], pay: 36 });
-             return list;
-        }
-        let n = parseInt(targetNum);
-        let dsIdx = Math.floor((n-1)/6);
-        let stIdx = Math.floor((n-1)/3);
-        let dozIdx = Math.ceil(n/12);
-        
-        if(document.getElementById('play-ds').checked) list.push({ label: `DS ${dsIdx+1}`, type: "D-Street", nums: Array.from({length: 6}, (_, i) => dsIdx*6+1+i), pay: 6 });
-        if(document.getElementById('play-st').checked) list.push({ label: `ST ${stIdx+1}`, type: "Street", nums: Array.from({length: 3}, (_, i) => stIdx*3+1+i), pay: 12 });
-        if(document.getElementById('play-doz').checked) list.push({ label: `DOZ ${dozIdx}`, type: "Dozen", nums: Array.from({length: 12}, (_, i) => (dozIdx-1)*12+1+i), pay: 3 });
-        if(document.getElementById('play-su').checked) list.push({ label: `#${n}`, type: "Straight Up", nums: [n], pay: 36 });
-        return list;
-    }
-
-    function press(val) {
-        saveState();
-        let unit = parseFloat(document.getElementById('base-unit').value);
-        let maxAllowedMult = parseInt(document.getElementById('max-mult').value);
-
-        // 1. Resolve Bet on the Number that JUST landed
-        if (betStack.length > 0) {
-            let totalStake = betStack.length * unit * mult;
-            bankroll -= totalStake;
-            let hitBet = betStack.find(b => b.nums.includes(val));
-            if (hitBet) {
-                bankroll += (unit * mult * hitBet.pay);
-                currentLosses = 0; currentWins++;
-                if (currentWins % parseInt(document.getElementById('win-step').value) === 0) mult = Math.max(1, mult - 1);
-                betStack = []; 
-                predictionLog.unshift({ res: val, win: true, cost: totalStake });
+        columns.forEach((colClass, index) => {
+            const inputs = document.querySelectorAll('.' + colClass);
+            let sum = 0;
+            let count = 0;
+            inputs.forEach(input => {
+                if(input.value !== "") {
+                    sum += parseFloat(input.value);
+                    count++;
+                }
+            });
+            
+            const avgId = colClass.startsWith('po') ? 'avg-po' + (index + 1) : 'avg-pso' + (index - 10);
+            const targetCell = document.getElementById(avgId);
+            
+            if(count > 0) {
+                targetCell.innerText = (sum / count).toFixed(2);
             } else {
-                currentWins = 0; currentLosses++;
-                if (currentLosses % parseInt(document.getElementById('loss-step').value) === 0) mult = Math.min(maxAllowedMult, mult + 1);
-                predictionLog.unshift({ res: val, win: false, cost: totalStake });
+                targetCell.innerText = "-";
             }
-        }
-
-        // 2. Add number to history and calculate distance
-        spins.push(val);
-        if (spins.length >= 2) {
-            let last = spins[spins.length-1];
-            let prev = spins[spins.length-2];
-            let d = (wheel.indexOf(last) - wheel.indexOf(prev) + 37) % 37;
-            distanceHistory.push(d);
-        }
-
-        // 3. Generate NEXT Prediction based on the number that just landed
-        generatePrediction(val);
-        updateUI();
-    }
-
-    function generatePrediction(currentNum) {
-        const mode = document.getElementById('dist-mode').value;
-        let activeDistance = 0;
-
-        if (mode === 'hot') {
-            let fMap = {};
-            distanceHistory.forEach(d => fMap[d] = (fMap[d] || 0) + 1);
-            let sorted = Object.entries(fMap).sort((a,b) => b[1]-a[1]);
-            activeDistance = sorted.length > 0 ? parseInt(sorted[0][0]) : 0;
-        } else {
-            activeDistance = parseInt(document.getElementById('fixed-dist-val').value) || 0;
-        }
-
-        document.getElementById('stat-hot-dist').innerText = activeDistance;
-
-        // CALCULATE TARGET: Start at current number, move X steps forward on custom wheel
-        let curIdx = wheel.indexOf(currentNum);
-        let targetIdx = (curIdx + activeDistance) % 37;
-        let targetNum = wheel[targetIdx];
-
-        let newBatch = getSelectedPredictions(targetNum);
-        newBatch.forEach(nb => {
-            if(!betStack.some(ob => ob.label === nb.label)) betStack.push(nb);
         });
     }
-
-    function updateUI() {
-        document.getElementById('stat-balance').innerText = bankroll.toFixed(0);
-        document.getElementById('stat-profit').innerText = (bankroll - startBank).toFixed(0);
-        document.getElementById('stat-peak').innerText = Math.max(peakBalance, bankroll).toFixed(0);
-        document.getElementById('stat-mult').innerText = mult;
-        document.getElementById('stat-active-count').innerText = betStack.length;
-
-        document.getElementById('bet-display').innerHTML = betStack.map(g => `
-            <div class="bet-individual-card">
-                <div class="bet-info">${g.type}</div>
-                <div class="bet-label">${g.label}</div>
-                <div class="bet-nums">Units: ${mult}</div>
-            </div>`).join('');
-
-        document.getElementById('dist-log').innerHTML = `<strong>Latest Dists</strong><br>` + distanceHistory.slice(-10).reverse().map(d => `<div>Dist ${d}</div>`).join('');
-        
-        let fMap = {};
-        distanceHistory.forEach(d => fMap[d] = (fMap[d] || 0) + 1);
-        let sorted = Object.entries(fMap).sort((a,b) => b[1]-a[1]);
-        document.getElementById('freq-rank').innerHTML = `<strong>Freq Ranking</strong><br>` + sorted.slice(0, 10).map(x => `<div>D${x[0]}: ${x[1]}x</div>`).join('');
-
-        document.getElementById('bet-history').innerHTML = predictionLog.slice(0, 5).map(l => 
-            `<div style="border-bottom:1px solid #eee; padding:3px">Spin ${l.res}: ${l.win?'WIN':'LOSS'} <small style="float:right">Cost: ${l.cost.toFixed(0)}</small></div>`).join('');
-    }
-
-    function runBulk() {
-        const input = document.getElementById('bulk-input').value;
-        input.split(/[,\s\n]+/).filter(x => x !== "").map(Number).forEach(n => press(n));
-    }
-
-    resetSession();
 </script>
+
 </body>
 </html>
