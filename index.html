@@ -2,167 +2,127 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CO-PO / PSO Attainment Generator</title>
+    <title>Dynamic CO-PO Attainment Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    
     <style>
-        body { font-family: 'Times New Roman', serif; margin: 20px; line-height: 1.4; color: #333; }
-        .container { max-width: 1000px; margin: auto; border: 1px solid #ccc; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-        h1 { font-size: 18px; margin: 5px; text-transform: uppercase; }
-        h2 { font-size: 14px; margin: 5px; text-decoration: underline; }
-        
-        .form-section { background: #f9f9f9; padding: 15px; border: 1px dashed #999; margin-bottom: 20px; }
-        .grid-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        th, td { border: 1px solid #000; padding: 5px; text-align: left; }
-        th { background-color: #f2f2f2; text-align: center; }
-        .input-cell { width: 40px; text-align: center; border: none; background: transparent; }
-        
-        .legend { font-size: 11px; color: red; font-style: italic; margin-top: 5px; }
-        .average-row { font-weight: bold; background: #eee; }
-        
-        @media print {
-            .no-print { display: none; }
-            .container { border: none; box-shadow: none; }
-        }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .header { text-align: center; border-bottom: 2px solid #333; margin-bottom: 20px; }
+        .upload-box { border: 2px dashed #007bff; padding: 30px; text-align: center; margin-bottom: 20px; border-radius: 8px; background: #f8f9ff; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; font-size: 12px; }
+        th { background: #343a40; color: white; }
+        .co-text-cell { text-align: left; width: 350px; font-weight: bold; }
+        input[type="number"] { width: 40px; border: 1px solid #ddd; border-radius: 4px; }
+        .btn-group { margin-top: 20px; display: flex; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="no-print form-section">
-        <h3>Input Panel</h3>
-        <p>Update the course details and enter mapping strengths (1, 2, or 3) in the table below.</p>
-        <button onclick="window.print()">Print to PDF</button>
+    <div class="header">
+        <h1>Bharat Institute of Engineering and Technology</h1>
+        <h3>CO-PO / PSO Attainment Tool</h3>
     </div>
 
-    <header>
-        <h1>BHARAT INSTITUTE OF ENGINEERING AND TECHNOLOGY</h1>
-        <h2>Department of Electronics and Communication Engineering</h2>
-        <p>Computation of CO-PO / PSO Attainment<br>Academic Year: 2025-26</p>
-    </header>
-
-    <div class="grid-info">
-        <div><strong>Course:</strong> CONTROL SYSTEM</div>
-        <div><strong>Course Code:</strong> EC503PC</div>
-        <div><strong>Class:</strong> III - I ECE</div>
-        <div><strong>Regulations:</strong> R22</div>
+    <div class="upload-box">
+        <h4>Step 1: Upload Syllabus (Any Subject PDF/DOCX)</h4>
+        <input type="file" id="fileInput" accept=".pdf,.docx">
+        <p><small>The system will automatically extract Course Outcomes (COs)</small></p>
     </div>
 
-    <section>
-        <h4>Current Course Description</h4>
-        <p style="font-size: 13px; text-align: justify; border: 1px solid #000; padding: 10px;">
-            It provides a comprehensive foundation in control systems, beginning with the mathematical modeling of physical systems and the fundamental distinction between open-loop and closed-loop feedback structures. It explores time-response analysis and stability determination through essential tools like the Routh-Hurwitz criteria and the Root-Locus technique...
-        </p>
-    </section>
-
-    <h4>CO-PO Matrix <span class="legend">(1: Slight, 2: Moderate, 3: Substantial)</span></h4>
-    <table id="attainmentTable">
-        <thead>
-            <tr>
-                <th rowspan="2">Course Outcomes (COs)</th>
-                <th colspan="11">Program Outcomes (POs)</th>
-                <th colspan="3">PSOs</th>
-            </tr>
-            <tr>
-                <th>PO1</th><th>PO2</th><th>PO3</th><th>PO4</th><th>PO5</th><th>PO6</th><th>PO7</th><th>PO8</th><th>PO9</th><th>PO10</th><th>PO11</th>
-                <th>PSO1</th><th>PSO2</th><th>PSO3</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>CO1: Model LTI systems...</td>
-                <td><input type="number" class="input-cell po-col-1" value="3"></td>
-                <td><input type="number" class="input-cell po-col-2" value="3"></td>
-                <td><input type="number" class="input-cell po-col-3" value="2"></td>
-                <td><input type="number" class="input-cell po-col-4" value="2"></td>
-                <td><input type="number" class="input-cell po-col-5" value=""></td>
-                <td><input type="number" class="input-cell po-col-6" value="2"></td>
-                <td><input type="number" class="input-cell po-col-7" value="1"></td>
-                <td><input type="number" class="input-cell po-col-8" value=""></td>
-                <td><input type="number" class="input-cell po-col-9" value=""></td>
-                <td><input type="number" class="input-cell po-col-10" value=""></td>
-                <td><input type="number" class="input-cell po-col-11" value=""></td>
-                <td><input type="number" class="input-cell pso-col-1" value="2"></td>
-                <td><input type="number" class="input-cell pso-col-2" value="3"></td>
-                <td><input type="number" class="input-cell pso-col-3" value=""></td>
-            </tr>
-            <tr>
-                <td>CO2: Understand stability...</td>
-                <td><input type="number" class="input-cell po-col-1" value="3"></td>
-                <td><input type="number" class="input-cell po-col-2" value="2"></td>
-                <td><input type="number" class="input-cell po-col-3" value="3"></td>
-                <td><input type="number" class="input-cell po-col-4" value="2"></td>
-                <td><input type="number" class="input-cell po-col-5" value=""></td>
-                <td><input type="number" class="input-cell po-col-6" value="2"></td>
-                <td><input type="number" class="input-cell po-col-7" value="1"></td>
-                <td><input type="number" class="input-cell po-col-8" value=""></td>
-                <td><input type="number" class="input-cell po-col-9" value=""></td>
-                <td><input type="number" class="input-cell po-col-10" value=""></td>
-                <td><input type="number" class="input-cell po-col-11" value=""></td>
-                <td><input type="number" class="input-cell pso-col-1" value="3"></td>
-                <td><input type="number" class="input-cell pso-col-2" value="2"></td>
-                <td><input type="number" class="input-cell pso-col-3" value=""></td>
-            </tr>
-            <tr class="average-row">
-                <td>Average</td>
-                <td id="avg-po1">3</td><td id="avg-po2">2.5</td><td id="avg-po3">2.5</td><td id="avg-po4">2</td><td id="avg-po5">-</td>
-                <td id="avg-po6">2</td><td id="avg-po7">1</td><td id="avg-po8">-</td><td id="avg-po9">-</td><td id="avg-po10">-</td>
-                <td id="avg-po11">-</td><td id="avg-pso1">2.5</td><td id="avg-pso2">2.5</td><td id="avg-pso3">-</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div style="margin-top: 30px;">
-        <h4>Course Outcomes Target Levels:</h4>
-        <table style="border: none;">
-            <tr style="color: red;">
-                <td>Attainment Level 1: 50% students scoring pass marks...</td>
-            </tr>
-            <tr style="color: red;">
-                <td>Attainment Level 2: 60% students scoring pass marks...</td>
-            </tr>
-            <tr style="color: red;">
-                <td>Attainment Level 3: 70% students scoring pass marks...</td>
-            </tr>
+    <div id="matrixContainer" style="display:none;">
+        <h4>Step 2: Enter Mapping Strengths & Download</h4>
+        <table id="targetTable">
+            <thead>
+                <tr>
+                    <th rowspan="2">Course Outcomes (Extracted)</th>
+                    <th colspan="11">Program Outcomes (POs)</th>
+                    <th colspan="3">PSOs</th>
+                </tr>
+                <tr>
+                    <th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>P6</th><th>P7</th><th>P8</th><th>P9</th><th>P10</th><th>P11</th>
+                    <th>S1</th><th>S2</th><th>S3</th>
+                </tr>
+            </thead>
+            <tbody id="coBody">
+                </tbody>
         </table>
+
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="exportToExcel()">Generate & Download Final Excel</button>
+        </div>
     </div>
 </div>
 
 <script>
-    // Logic to calculate averages dynamically as user types
-    document.querySelectorAll('.input-cell').forEach(input => {
-        input.addEventListener('input', calculateAverages);
-    });
+    const fileInput = document.getElementById('fileInput');
+    const coBody = document.getElementById('coBody');
+    const matrixContainer = document.getElementById('matrixContainer');
 
-    function calculateAverages() {
-        const columns = [
-            'po-col-1', 'po-col-2', 'po-col-3', 'po-col-4', 'po-col-5', 
-            'po-col-6', 'po-col-7', 'po-col-8', 'po-col-9', 'po-col-10', 'po-col-11',
-            'pso-col-1', 'pso-col-2', 'pso-col-3'
-        ];
+    fileInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-        columns.forEach((colClass, index) => {
-            const inputs = document.querySelectorAll('.' + colClass);
-            let sum = 0;
-            let count = 0;
-            inputs.forEach(input => {
-                if(input.value !== "") {
-                    sum += parseFloat(input.value);
-                    count++;
-                }
-            });
-            
-            const avgId = colClass.startsWith('po') ? 'avg-po' + (index + 1) : 'avg-pso' + (index - 10);
-            const targetCell = document.getElementById(avgId);
-            
-            if(count > 0) {
-                targetCell.innerText = (sum / count).toFixed(2);
-            } else {
-                targetCell.innerText = "-";
+        let text = "";
+        if (file.name.endsWith('.docx')) {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({arrayBuffer});
+            text = result.value;
+        } else if (file.name.endsWith('.pdf')) {
+            // PDF extraction simplified for demo
+            alert("PDF support requires server-side parsing or local worker. Try DOCX for best results in this demo.");
+        }
+
+        extractCOs(text);
+    };
+
+    function extractCOs(text) {
+        // Logic to find lines starting with CO1, CO2, etc.
+        const lines = text.split('\n');
+        const cos = lines.filter(line => line.trim().match(/^CO[1-6]/i));
+        
+        if (cos.length === 0) {
+            alert("No COs found. Ensure your syllabus lists them as 'CO1: ...', 'CO2: ...'");
+            return;
+        }
+
+        coBody.innerHTML = "";
+        cos.forEach(co => {
+            let row = `<tr><td class="co-text-cell">${co}</td>`;
+            for (let i = 0; i < 14; i++) {
+                row += `<td><input type="number" min="1" max="3" class="map-input"></td>`;
             }
+            row += `</tr>`;
+            coBody.innerHTML += row;
         });
+
+        matrixContainer.style.display = 'block';
+    }
+
+    function exportToExcel() {
+        const rows = document.querySelectorAll('#targetTable tr');
+        let excelData = [];
+
+        rows.forEach((row) => {
+            let rowData = [];
+            row.querySelectorAll('th, td').forEach(cell => {
+                const input = cell.querySelector('input');
+                rowData.push(input ? (input.value || 0) : cell.innerText);
+            });
+            excelData.push(rowData);
+        });
+
+        const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Attainment");
+        XLSX.writeFile(workbook, "Subject_Attainment_Report.xlsx");
     }
 </script>
 
