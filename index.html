@@ -2,127 +2,111 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dynamic CO-PO Attainment Generator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roulette 7-Neighbor Tracker</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .header { text-align: center; border-bottom: 2px solid #333; margin-bottom: 20px; }
-        .upload-box { border: 2px dashed #007bff; padding: 30px; text-align: center; margin-bottom: 20px; border-radius: 8px; background: #f8f9ff; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; font-size: 12px; }
-        th { background: #343a40; color: white; }
-        .co-text-cell { text-align: left; width: 350px; font-weight: bold; }
-        input[type="number"] { width: 40px; border: 1px solid #ddd; border-radius: 4px; }
-        .btn-group { margin-top: 20px; display: flex; gap: 10px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-primary { background: #007bff; color: white; }
-        .btn-success { background: #28a745; color: white; }
+        body { font-family: sans-serif; background: #1a1a1a; color: #eee; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: #2a2a2a; padding: 20px; border-radius: 8px; }
+        input, button { padding: 10px; border-radius: 4px; border: none; margin: 5px 0; }
+        button { background: #28a745; color: white; cursor: pointer; font-weight: bold; }
+        button:hover { background: #218838; }
+        .stats-table { width: 100%; border-collapse: collapse; margin-top: 20px; overflow-x: auto; display: block; }
+        th, td { border: 1px solid #444; padding: 8px; text-align: center; min-width: 45px; }
+        th { background: #333; }
+        .win { color: #28a745; font-weight: bold; }
+        .loss { color: #dc3545; }
+        .best-bet { background: #333; padding: 15px; border-left: 5px solid #28a745; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
-        <h1>Bharat Institute of Engineering and Technology</h1>
-        <h3>CO-PO / PSO Attainment Tool</h3>
+    <h2>Roulette 7-Neighbor Tracker</h2>
+    
+    <div>
+        <label>Enter Result:</label><br>
+        <input type="number" id="nextNumber" placeholder="e.g. 32" min="0" max="36">
+        <button onclick="addResult()">Submit Spin</button>
     </div>
 
-    <div class="upload-box">
-        <h4>Step 1: Upload Syllabus (Any Subject PDF/DOCX)</h4>
-        <input type="file" id="fileInput" accept=".pdf,.docx">
-        <p><small>The system will automatically extract Course Outcomes (COs)</small></p>
+    <div id="bestBetDisplay" class="best-bet">
+        Enter numbers to start tracking...
     </div>
 
-    <div id="matrixContainer" style="display:none;">
-        <h4>Step 2: Enter Mapping Strengths & Download</h4>
-        <table id="targetTable">
-            <thead>
-                <tr>
-                    <th rowspan="2">Course Outcomes (Extracted)</th>
-                    <th colspan="11">Program Outcomes (POs)</th>
-                    <th colspan="3">PSOs</th>
-                </tr>
-                <tr>
-                    <th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>P6</th><th>P7</th><th>P8</th><th>P9</th><th>P10</th><th>P11</th>
-                    <th>S1</th><th>S2</th><th>S3</th>
-                </tr>
-            </thead>
-            <tbody id="coBody">
-                </tbody>
-        </table>
-
-        <div class="btn-group">
-            <button class="btn btn-success" onclick="exportToExcel()">Generate & Download Final Excel</button>
-        </div>
-    </div>
+    <table class="stats-table" id="statsTable">
+        <thead>
+            <tr id="rowNumbers"><th>No</th></tr>
+            <tr id="rowPercent"><th>%</th></tr>
+        </thead>
+    </table>
 </div>
 
 <script>
-    const fileInput = document.getElementById('fileInput');
-    const coBody = document.getElementById('coBody');
-    const matrixContainer = document.getElementById('matrixContainer');
+    const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+    const NEIGHBOR_RANGE = 7;
+    let allResults = [];
 
-    fileInput.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        let text = "";
-        if (file.name.endsWith('.docx')) {
-            const arrayBuffer = await file.arrayBuffer();
-            const result = await mammoth.extractRawText({arrayBuffer});
-            text = result.value;
-        } else if (file.name.endsWith('.pdf')) {
-            // PDF extraction simplified for demo
-            alert("PDF support requires server-side parsing or local worker. Try DOCX for best results in this demo.");
+    function isWithinNeighbors(base, result) {
+        const baseIdx = WHEEL.indexOf(base);
+        const resIdx = WHEEL.indexOf(result);
+        for (let i = -NEIGHBOR_RANGE; i <= NEIGHBOR_RANGE; i++) {
+            let targetIdx = (baseIdx + i + WHEEL.length) % WHEEL.length;
+            if (WHEEL[targetIdx] === result) return true;
         }
-
-        extractCOs(text);
-    };
-
-    function extractCOs(text) {
-        // Logic to find lines starting with CO1, CO2, etc.
-        const lines = text.split('\n');
-        const cos = lines.filter(line => line.trim().match(/^CO[1-6]/i));
-        
-        if (cos.length === 0) {
-            alert("No COs found. Ensure your syllabus lists them as 'CO1: ...', 'CO2: ...'");
-            return;
-        }
-
-        coBody.innerHTML = "";
-        cos.forEach(co => {
-            let row = `<tr><td class="co-text-cell">${co}</td>`;
-            for (let i = 0; i < 14; i++) {
-                row += `<td><input type="number" min="1" max="3" class="map-input"></td>`;
-            }
-            row += `</tr>`;
-            coBody.innerHTML += row;
-        });
-
-        matrixContainer.style.display = 'block';
+        return false;
     }
 
-    function exportToExcel() {
-        const rows = document.querySelectorAll('#targetTable tr');
-        let excelData = [];
-
-        rows.forEach((row) => {
-            let rowData = [];
-            row.querySelectorAll('th, td').forEach(cell => {
-                const input = cell.querySelector('input');
-                rowData.push(input ? (input.value || 0) : cell.innerText);
+    function calculateStats() {
+        let stats = WHEEL.map(num => {
+            let wins = 0;
+            allResults.forEach(res => {
+                if (isWithinNeighbors(num, res)) wins++;
             });
-            excelData.push(rowData);
+            let pct = allResults.length > 0 ? (wins / allResults.length) * 100 : 0;
+            return { num, pct: Math.round(pct) };
         });
 
-        const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Attainment");
-        XLSX.writeFile(workbook, "Subject_Attainment_Report.xlsx");
+        // Sort by percentage descending
+        stats.sort((a, b) => b.pct - a.pct);
+        updateUI(stats);
+    }
+
+    function updateUI(stats) {
+        const rowNo = document.getElementById('rowNumbers');
+        const rowPct = document.getElementById('rowPercent');
+        const bestBetDiv = document.getElementById('bestBetDisplay');
+
+        // Clear table
+        rowNo.innerHTML = '<th>No</th>';
+        rowPct.innerHTML = '<th>%</th>';
+
+        stats.forEach(item => {
+            rowNo.innerHTML += `<td>${item.num}</td>`;
+            rowPct.innerHTML += `<td>${item.pct}%</td>`;
+        });
+
+        // Update Best Bet
+        if (allResults.length > 0) {
+            const best = stats[0];
+            const lastResult = allResults[allResults.length - 1];
+            const isWin = isWithinNeighbors(best.num, lastResult);
+            
+            bestBetDiv.innerHTML = `
+                <strong>Best Target:</strong> ${best.num} (Sector Win Rate: ${best.pct}%)<br>
+                <strong>Last Result:</strong> ${lastResult} 
+                <span class="${isWin ? 'win' : 'loss'}">${isWin ? '✅ WIN' : '❌ LOSS'}</span>
+            `;
+        }
+    }
+
+    function addResult() {
+        const input = document.getElementById('nextNumber');
+        const val = parseInt(input.value);
+        if (!isNaN(val) && val >= 0 && val <= 36) {
+            allResults.push(val);
+            input.value = '';
+            calculateStats();
+        }
     }
 </script>
 
