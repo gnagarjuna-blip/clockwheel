@@ -23,17 +23,21 @@
         .wait { background: rgba(192, 57, 43, 0.2); border-color: var(--red); color: var(--red); }
 
         /* Prediction Area */
-        .prediction-area { background: #111; border: 1px solid #444; padding: 20px; border-radius: 15px; text-align: center; }
+        .prediction-area { background: #111; border: 1px solid #444; padding: 20px; border-radius: 15px; text-align: center; position: relative; }
         .target-num { font-size: 4rem; color: var(--gold); font-weight: 900; line-height: 1; margin: 10px 0; }
-        .sector-list { color: #888; font-family: monospace; background: #000; padding: 10px; border-radius: 5px; margin-top: 10px; }
+        .last-num-display { font-size: 1.5rem; color: #fff; background: #333; padding: 5px 15px; border-radius: 20px; display: inline-block; margin-bottom: 10px; border: 1px solid var(--gold); }
+        .sector-list { color: #888; font-family: monospace; background: #000; padding: 10px; border-radius: 5px; margin-top: 15px; }
         
         /* Streak Area */
         .streak-container { display: flex; justify-content: center; gap: 5px; margin-bottom: 15px; }
-        .streak-item { width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+        .streak-item { width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-weight: bold; font-size: 0.75rem; color: white; }
         .W { background: var(--green); }
         .L { background: var(--red); }
 
-        textarea { width: 100%; height: 80px; background: #000; color: var(--gold); border: 1px solid #444; margin-top: 10px; padding: 10px; border-radius: 5px; }
+        /* Small History Rail */
+        .history-rail { display: flex; gap: 5px; overflow-x: auto; padding: 10px; background: #000; border-radius: 5px; margin-top: 10px; font-size: 0.8rem; min-height: 20px;}
+
+        textarea { width: 100%; height: 80px; background: #000; color: var(--gold); border: 1px solid #444; margin-top: 10px; padding: 10px; border-radius: 5px; box-sizing: border-box;}
         button { width: 100%; padding: 12px; margin-top: 10px; background: var(--blue); color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
     </style>
 </head>
@@ -50,7 +54,7 @@
             </div>
             <textarea id="bulk" placeholder="Paste 150-200 numbers here..."></textarea>
             <button onclick="importBulk()">Initialize with Data</button>
-            <p style="font-size: 0.8rem; color: #777;">* After initialization, use the board for live updates.</p>
+            <div id="historyRail" class="history-rail"></div>
         </div>
 
         <div class="panel">
@@ -83,16 +87,23 @@
             if (streaks.length > 8) streaks.shift();
         }
         history.push(n);
+        updateHistoryRail();
         processLogic();
     }
 
     function importBulk() {
         const val = document.getElementById('bulk').value;
         const nums = val.split(/[ ,]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
-        // On bulk import, we don't calculate streaks for every number to avoid noise
         history = [...history, ...nums];
+        updateHistoryRail();
         processLogic();
         document.getElementById('bulk').value = '';
+    }
+
+    function updateHistoryRail() {
+        const rail = document.getElementById('historyRail');
+        const last10 = history.slice(-10).reverse();
+        rail.innerHTML = last10.map(n => `<span style="color:${n===0?'#27ae60':(REDS.includes(n)?'#e74c3c':'#fff')}">${n}</span>`).join(' | ');
     }
 
     function getSector(center) {
@@ -104,17 +115,16 @@
         return sector;
     }
 
-    // Advanced: Gives more weight to recent hits
     function calculateWeightedRate(sectorNums) {
-        if (history.length < 10) return 0;
+        if (history.length < 5) return 0;
         let score = 0;
         const recent30 = history.slice(-30);
         const olderData = history.slice(0, -30);
 
-        recent30.forEach(n => { if(sectorNums.includes(n)) score += 2; }); // Weight recent hits x2
-        olderData.forEach(n => { if(sectorNums.includes(n)) score += 0.5; }); // Weight old hits x0.5
+        recent30.forEach(n => { if(sectorNums.includes(n)) score += 2; }); 
+        olderData.forEach(n => { if(sectorNums.includes(n)) score += 0.5; }); 
         
-        return score / history.length;
+        return score / (history.length || 1);
     }
 
     function processLogic() {
@@ -133,16 +143,14 @@
         });
 
         lastPredictedSector = getSector(bestCenter);
-        render(bestCenter, highestRate);
+        render(lastNum, bestCenter, highestRate);
     }
 
-    function render(best, rate) {
+    function render(last, best, rate) {
         const signal = document.getElementById('signal');
         const disp = document.getElementById('display');
         const streakBox = document.getElementById('streakDisplay');
 
-        // Logic for "CONFIRM" signal
-        // If the rate is high AND we aren't in a long losing streak
         const winCount = streaks.filter(s => s === 'W').length;
         const isHot = rate > 0.35 || (winCount >= 3 && rate > 0.25);
 
@@ -157,10 +165,17 @@
         streakBox.innerHTML = streaks.map(s => `<div class="streak-item ${s}">${s}</div>`).join('');
 
         disp.innerHTML = `
-            <div style="font-size:0.8rem; color:#888">RECOMMENDED CENTER</div>
+            <div style="font-size:0.8rem; color:#888; margin-bottom:5px;">LAST RESULT ENTERED</div>
+            <div class="last-num-display">${last}</div>
+            
+            <div style="font-size:0.8rem; color:#888; margin-top:10px;">PREDICTED SECTOR CENTER</div>
             <div class="target-num">${best}</div>
-            <div style="color:var(--gold)">Weighted Momentum: ${(rate * 100).toFixed(0)}</div>
-            <div class="sector-list">${lastPredictedSector.join(' ')}</div>
+            
+            <div style="color:var(--gold); font-weight:bold;">Weighted Momentum: ${(rate * 100).toFixed(0)}</div>
+            <div class="sector-list">
+                <div style="color:#555; font-size:0.7rem; margin-bottom:5px;">COVER THESE NUMBERS:</div>
+                ${lastPredictedSector.join(' ')}
+            </div>
         `;
     }
 </script>
