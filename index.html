@@ -25,6 +25,12 @@
         .target-num { font-size: 4rem; color: var(--gold); font-weight: 900; line-height: 1; margin: 10px 0; }
         .sector-list { color: #888; font-family: monospace; word-spacing: 5px; background: #000; padding: 10px; border-radius: 5px; font-size: 0.9rem; }
         
+        /* Streak Styling */
+        .streak-container { margin-bottom: 15px; display: flex; justify-content: center; gap: 5px; }
+        .streak-item { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
+        .win { background: var(--green); color: white; }
+        .loss { background: var(--red); color: white; }
+
         textarea { width: 100%; height: 50px; background: #000; color: var(--green); border: 1px solid #444; margin-top: 10px; padding: 5px; font-family: monospace; }
         button { width: 100%; padding: 12px; margin-top: 10px; background: #333; color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
         button:hover { background: #444; }
@@ -64,6 +70,8 @@
     const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
     const REDS = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
     let history = [];
+    let streaks = []; // Stores "W" or "L"
+    let lastPredictedSector = [];
 
     // Initialize UI Board
     const board = document.getElementById('board');
@@ -73,6 +81,7 @@
     }));
 
     function inputResult(n) {
+        checkWinLoss(n);
         history.push(n);
         processLogic(n);
     }
@@ -80,9 +89,22 @@
     function importBulk() {
         const val = document.getElementById('bulk').value;
         const nums = val.split(/[ ,]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
-        history = [...history, ...nums];
-        if(history.length > 0) processLogic(history[history.length-1]);
+        
+        nums.forEach(n => {
+            checkWinLoss(n);
+            history.push(n);
+            processLogic(n);
+        });
+        
         document.getElementById('bulk').value = '';
+    }
+
+    function checkWinLoss(newNum) {
+        if (lastPredictedSector.length > 0) {
+            const isWin = lastPredictedSector.includes(newNum);
+            streaks.push(isWin ? "W" : "L");
+            if (streaks.length > 8) streaks.shift(); // Keep only last 8
+        }
     }
 
     // Core Logic
@@ -102,10 +124,8 @@
     }
 
     function processLogic(lastNum) {
-        // 1. Identify the 15 neighbors of the entered number
         let triggerZone = getSector(lastNum);
 
-        // 2. For each number in THAT zone, calculate its own 15-number sector's win rate
         let bestCenter = triggerZone[0];
         let highestWinRate = -1;
 
@@ -119,8 +139,8 @@
             }
         });
 
-        // 3. The winner is the center of our next bet
         let finalPredictionSector = getSector(bestCenter);
+        lastPredictedSector = finalPredictionSector; // Save for next comparison
         render(lastNum, bestCenter, highestWinRate, finalPredictionSector);
     }
 
@@ -128,7 +148,15 @@
         const disp = document.getElementById('display');
         const path = document.getElementById('logicPath');
 
+        // Build streak HTML
+        let streakHtml = `<div class="streak-container">`;
+        streaks.forEach(s => {
+            streakHtml += `<span class="streak-item ${s === 'W' ? 'win' : 'loss'}">${s}</span>`;
+        });
+        streakHtml += `</div>`;
+
         disp.innerHTML = `
+            ${streakHtml}
             <div style="font-size:0.9rem; color:var(--gold)">WINNING SECTOR CENTER</div>
             <div class="target-num">${best}</div>
             <div style="margin-bottom:10px">Sector Strength: <strong>${rate.toFixed(1)}%</strong></div>
