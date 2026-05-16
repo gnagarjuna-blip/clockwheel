@@ -2,71 +2,59 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Professional Sector Analyzer</title>
+    <title>Advanced Sector-in-Sector Tracker</title>
     <style>
-        :root { --green: #27ae60; --red: #c0392b; --black: #1a1a1a; --gold: #f1c40f; --blue: #3498db; }
+        :root { --green: #27ae60; --red: #c0392b; --black: #1a1a1a; --gold: #f1c40f; }
         body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #eee; margin: 20px; }
         .container { max-width: 1100px; margin: auto; }
+        
         .flex-row { display: flex; gap: 20px; flex-wrap: wrap; }
         .panel { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; flex: 1; min-width: 350px; }
 
-        /* Board & Cells */
+        /* Board Styling */
         .board { display: grid; grid-template-columns: repeat(13, 1fr); gap: 4px; margin-top: 15px; }
-        .cell { height: 45px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; border-radius: 4px; border: 1px solid #444; }
+        .cell { height: 45px; display: flex; align-items: center; justify-content: center; cursor: pointer; 
+                font-weight: bold; border-radius: 4px; border: 1px solid #444; }
         .n0 { background: var(--green); grid-row: span 3; }
         .nRed { background: var(--red); }
         .nBlack { background: var(--black); }
         
-        /* Signal Indicator */
-        .signal-box { padding: 15px; border-radius: 8px; margin-bottom: 15px; font-weight: 900; font-size: 1.2rem; text-align: center; border: 2px solid transparent; }
-        .bet { background: rgba(39, 174, 96, 0.2); border-color: var(--green); color: var(--green); }
-        .wait { background: rgba(192, 57, 43, 0.2); border-color: var(--red); color: var(--red); }
-
-        /* Prediction Area */
-        .prediction-area { background: #111; border: 1px solid #444; padding: 20px; border-radius: 15px; text-align: center; position: relative; }
+        /* Prediction Styling */
+        .prediction-area { background: linear-gradient(145deg, #252525, #1a1a1a); border: 2px solid var(--gold); 
+                           padding: 20px; border-radius: 15px; text-align: center; margin-top: 10px; }
         .target-num { font-size: 4rem; color: var(--gold); font-weight: 900; line-height: 1; margin: 10px 0; }
-        .last-num-display { font-size: 1.5rem; color: #fff; background: #333; padding: 5px 15px; border-radius: 20px; display: inline-block; margin-bottom: 10px; border: 1px solid var(--gold); }
-        .sector-list { color: #888; font-family: monospace; background: #000; padding: 10px; border-radius: 5px; margin-top: 15px; }
+        .sector-list { color: #888; font-family: monospace; word-spacing: 5px; background: #000; padding: 10px; border-radius: 5px; font-size: 0.9rem; }
         
-        /* Streak Area */
-        .streak-container { display: flex; justify-content: center; gap: 5px; margin-top: 10px; margin-bottom: 10px; }
-        .streak-item { width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-weight: bold; font-size: 0.75rem; color: white; }
-        .W { background: var(--green); }
-        .L { background: var(--red); }
+        textarea { width: 100%; height: 50px; background: #000; color: var(--green); border: 1px solid #444; margin-top: 10px; padding: 5px; font-family: monospace; }
+        button { width: 100%; padding: 12px; margin-top: 10px; background: #333; color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        button:hover { background: #444; }
 
-        /* Statistics Layout */
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #333; }
-        .stat-box { text-align: center; }
-        .stat-val { font-size: 1.3rem; font-weight: bold; color: #fff; }
-        .stat-lbl { font-size: 0.7rem; color: #888; text-transform: uppercase; }
-
-        /* Small History Rail */
-        .history-rail { display: flex; gap: 5px; overflow-x: auto; padding: 10px; background: #000; border-radius: 5px; margin-top: 10px; font-size: 0.8rem; min-height: 20px;}
-
-        textarea { width: 100%; height: 80px; background: #000; color: var(--gold); border: 1px solid #444; margin-top: 10px; padding: 10px; border-radius: 5px; box-sizing: border-box;}
-        button { width: 100%; padding: 12px; margin-top: 10px; background: var(--blue); color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        .log-box { font-size: 0.8rem; color: #aaa; background: #111; padding: 10px; border-radius: 5px; margin-top: 10px; border-left: 3px solid var(--gold); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 style="color: var(--gold);">Confirm-Bet Sector Tracker (Recency Weighted)</h2>
+    <h2 style="color: var(--gold);">Layered Sector Tracker (7-Neighbor Hit %)</h2>
 
     <div class="flex-row">
         <div class="panel">
-            <h3>Input History <span id="dataCount" style="font-size: 0.9rem; color: #888; font-weight: normal;">(0/70 numbers)</span></h3>
+            <h3>Add Last Result</h3>
             <div id="board" class="board">
                 <div class="cell n0" onclick="inputResult(0)">0</div>
             </div>
-            <textarea id="bulk" placeholder="Paste numbers here (Newest at top, oldest at bottom)..."></textarea>
-            <button onclick="importBulk()">Initialize with Data</button>
-            <div id="historyRail" class="history-rail"></div>
+            <textarea id="bulk" placeholder="Paste history here (e.g. 10, 32, 15, 19)..."></textarea>
+            <button onclick="importBulk()">Process History</button>
         </div>
 
         <div class="panel">
-            <div id="signal" class="signal-box">STANDBY</div>
+            <h3>Strongest Nearby Sector</h3>
             <div id="display" class="prediction-area">
-                <p>Awaiting Data Analysis (Requires 70+ numbers)...</p>
+                <p>Waiting for data entry...</p>
+            </div>
+            
+            <div id="logicPath" class="log-box">
+                Logic trail will appear here after calculation.
             </div>
         </div>
     </div>
@@ -75,22 +63,9 @@
 <script>
     const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
     const REDS = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
-    const MIN_REQUIRED_DATA = 70;
-    
     let history = [];
-    let lastBestCenter = null; 
 
-    // Sector statistics tracker organized by sector center item
-    let sectorStats = {};
-    WHEEL.forEach(num => {
-        sectorStats[num] = {
-            streaks: [],
-            totalPredictions: 0,
-            totalHits: 0
-        };
-    });
-
-    // Init Board Setup
+    // Initialize UI Board
     const board = document.getElementById('board');
     const rows = [[3,6,9,12,15,18,21,24,27,30,33,36],[2,5,8,11,14,17,20,23,26,29,32,35],[1,4,7,10,13,16,19,22,25,28,31,34]];
     rows.forEach(r => r.forEach(n => {
@@ -98,60 +73,19 @@
     }));
 
     function inputResult(n) {
-        // Evaluate accuracy of the previous round's prediction if data threshold is met
-        if (history.length >= MIN_REQUIRED_DATA && lastBestCenter !== null) {
-            let predictedSectorNums = getSector(lastBestCenter);
-            let outcome = predictedSectorNums.includes(n) ? "W" : "L";
-            
-            sectorStats[lastBestCenter].streaks.push(outcome);
-            sectorStats[lastBestCenter].totalPredictions++;
-            if (outcome === "W") {
-                sectorStats[lastBestCenter].totalHits++;
-            }
-            
-            // Constrain rolling streak track to the last 8 entries
-            if (sectorStats[lastBestCenter].streaks.length > 8) {
-                sectorStats[lastBestCenter].streaks.shift();
-            }
-        }
-
         history.push(n);
-        updateHistoryRail();
-        processLogic();
+        processLogic(n);
     }
 
     function importBulk() {
         const val = document.getElementById('bulk').value;
-        // Parse numbers into an array
-        let nums = val.split(/[ ,]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
-        
-        // CRITICAL FIX: Reverse the array so it processes from bottom (oldest) to top (newest)
-        nums.reverse();
-        
-        // Feed numbers sequentially to preserve accurate historical simulation tracking
-        nums.forEach(n => {
-            inputResult(n);
-        });
-
+        const nums = val.split(/[ ,]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+        history = [...history, ...nums];
+        if(history.length > 0) processLogic(history[history.length-1]);
         document.getElementById('bulk').value = '';
     }
 
-    function updateHistoryRail() {
-        const rail = document.getElementById('historyRail');
-        const countDisplay = document.getElementById('dataCount');
-        
-        // Update history sample counter UI
-        countDisplay.innerText = `(${history.length}/${MIN_REQUIRED_DATA} numbers)`;
-        if (history.length >= MIN_REQUIRED_DATA) {
-            countDisplay.style.color = '#27ae60';
-        } else {
-            countDisplay.style.color = '#e74c3c';
-        }
-
-        const last10 = history.slice(-10).reverse();
-        rail.innerHTML = last10.map(n => `<span style="color:${n===0?'#27ae60':(REDS.includes(n)?'#e74c3c':'#fff')}">${n}</span>`).join(' | ');
-    }
-
+    // Core Logic
     function getSector(center) {
         let idx = WHEEL.indexOf(center);
         let sector = [];
@@ -161,105 +95,52 @@
         return sector;
     }
 
-    function calculateWeightedRate(sectorNums) {
-        let score = 0;
-        const recent30 = history.slice(-30);
-        const olderData = history.slice(0, -30);
-
-        recent30.forEach(n => { if(sectorNums.includes(n)) score += 2; }); 
-        olderData.forEach(n => { if(sectorNums.includes(n)) score += 0.5; }); 
-        
-        return score / (history.length || 1);
+    function calculateSectorWinRate(sectorNumbers) {
+        if (history.length === 0) return 0;
+        let wins = history.filter(num => sectorNumbers.includes(num)).length;
+        return (wins / history.length) * 100;
     }
 
-    function processLogic() {
-        const signal = document.getElementById('signal');
-        const disp = document.getElementById('display');
-
-        // Check hard requirement for minimum of 70 items before processing
-        if (history.length < MIN_REQUIRED_DATA) {
-            signal.className = "signal-box wait";
-            signal.innerText = "STANDBY";
-            disp.innerHTML = `
-                <div style="padding: 20px; color: #888;">
-                    <p style="font-weight: bold; color: var(--gold);">DATA CAPTURE MODE</p>
-                    <p>Processing requires at least <strong>${MIN_REQUIRED_DATA}</strong> past spins.</p>
-                    <p>Current count: <span style="font-size: 1.2rem; color: #fff; font-weight: bold;">${history.length}</span></p>
-                    <progress value="${history.length}" max="${MIN_REQUIRED_DATA}" style="width: 80%; margin-top: 10px;"></progress>
-                </div>
-            `;
-            return;
-        }
-
-        const lastNum = history[history.length - 1];
+    function processLogic(lastNum) {
+        // 1. Identify the 15 neighbors of the entered number
         let triggerZone = getSector(lastNum);
+
+        // 2. For each number in THAT zone, calculate its own 15-number sector's win rate
         let bestCenter = triggerZone[0];
-        let highestRate = -1;
+        let highestWinRate = -1;
 
         triggerZone.forEach(candidate => {
-            let rate = calculateWeightedRate(getSector(candidate));
-            if (rate > highestRate) {
-                highestRate = rate;
+            let candidateSector = getSector(candidate);
+            let winRate = calculateSectorWinRate(candidateSector);
+            
+            if (winRate > highestWinRate) {
+                highestWinRate = winRate;
                 bestCenter = candidate;
             }
         });
 
-        lastBestCenter = bestCenter; 
-        render(lastNum, bestCenter, highestRate);
+        // 3. The winner is the center of our next bet
+        let finalPredictionSector = getSector(bestCenter);
+        render(lastNum, bestCenter, highestWinRate, finalPredictionSector);
     }
 
-    function render(last, best, rate) {
-        const signal = document.getElementById('signal');
+    function render(last, best, rate, sector) {
         const disp = document.getElementById('display');
-
-        const currentSectorData = sectorStats[best];
-        const currentStreaks = currentSectorData.streaks;
-        
-        let sectorHitPercentage = 0;
-        if (currentSectorData.totalPredictions > 0) {
-            sectorHitPercentage = Math.round((currentSectorData.totalHits / currentSectorData.totalPredictions) * 100);
-        }
-
-        const recentWCount = currentStreaks.filter(s => s === 'W').length;
-        const isHot = rate > 0.35 || (recentWCount >= 3 && rate > 0.25);
-
-        if (isHot) {
-            signal.className = "signal-box bet";
-            signal.innerText = "CONFIRMED SIGNAL: BET";
-        } else {
-            signal.className = "signal-box wait";
-            signal.innerText = "WAITING FOR PATTERN";
-        }
-
-        const streaksHtml = currentStreaks.length > 0 
-            ? currentStreaks.map(s => `<div class="streak-item ${s}">${s}</div>`).join('')
-            : `<span style="color:#666; font-size:0.8rem; font-style:italic;">No track history yet</span>`;
+        const path = document.getElementById('logicPath');
 
         disp.innerHTML = `
-            <div style="font-size:0.8rem; color:#888; margin-bottom:5px;">LAST RESULT ENTERED</div>
-            <div class="last-num-display">${last}</div>
-            
-            <div style="font-size:0.8rem; color:#888; margin-top:10px;">PREDICTED SECTOR CENTER</div>
+            <div style="font-size:0.9rem; color:var(--gold)">WINNING SECTOR CENTER</div>
             <div class="target-num">${best}</div>
-            
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <div class="stat-val">${(rate * 100).toFixed(0)}</div>
-                    <div class="stat-lbl">Weighted Momentum</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-val">${sectorHitPercentage}%</div>
-                    <div class="stat-lbl">Sector Hit Rate</div>
-                </div>
-            </div>
+            <div style="margin-bottom:10px">Sector Strength: <strong>${rate.toFixed(1)}%</strong></div>
+            <div class="sector-list">${sector.join(' ')}</div>
+        `;
 
-            <div style="font-size:0.75rem; color:#888; margin-bottom:5px; text-transform:uppercase;">Sector Streak (Last 8)</div>
-            <div class="streak-container">${streaksHtml}</div>
-
-            <div class="sector-list">
-                <div style="color:#555; font-size:0.7rem; margin-bottom:5px;">COVER THESE NUMBERS:</div>
-                ${getSector(best).join(' ')}
-            </div>
+        path.innerHTML = `
+            <strong>Logic Trail:</strong><br>
+            • Last Entered: <b>${last}</b><br>
+            • Analyzing all 15 sectors neighboring ${last}...<br>
+            • Sector <b>${best}</b> has the highest historical hit density (<b>${rate.toFixed(1)}%</b>).<br>
+            • <b>Recommendation:</b> Play ${best} with 7 neighbors.
         `;
     }
 </script>
