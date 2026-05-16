@@ -58,7 +58,7 @@
             <div id="board" class="board">
                 <div class="cell n0" onclick="inputResult(0)">0</div>
             </div>
-            <textarea id="bulk" placeholder="Paste 150-200 numbers here..."></textarea>
+            <textarea id="bulk" placeholder="Paste numbers here (Newest at top, oldest at bottom)..."></textarea>
             <button onclick="importBulk()">Initialize with Data</button>
             <div id="historyRail" class="history-rail"></div>
         </div>
@@ -122,7 +122,11 @@
 
     function importBulk() {
         const val = document.getElementById('bulk').value;
-        const nums = val.split(/[ ,]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+        // Parse numbers into an array
+        let nums = val.split(/[ ,]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+        
+        // CRITICAL FIX: Reverse the array so it processes from bottom (oldest) to top (newest)
+        nums.reverse();
         
         // Feed numbers sequentially to preserve accurate historical simulation tracking
         nums.forEach(n => {
