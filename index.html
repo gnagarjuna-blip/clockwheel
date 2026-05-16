@@ -29,10 +29,16 @@
         .sector-list { color: #888; font-family: monospace; background: #000; padding: 10px; border-radius: 5px; margin-top: 15px; }
         
         /* Streak Area */
-        .streak-container { display: flex; justify-content: center; gap: 5px; margin-bottom: 15px; }
+        .streak-container { display: flex; justify-content: center; gap: 5px; margin-top: 10px; margin-bottom: 10px; }
         .streak-item { width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-weight: bold; font-size: 0.75rem; color: white; }
         .W { background: var(--green); }
         .L { background: var(--red); }
+
+        /* Statistics Layout */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #333; }
+        .stat-box { text-align: center; }
+        .stat-val { font-size: 1.3rem; font-weight: bold; color: #fff; }
+        .stat-lbl { font-size: 0.7rem; color: #888; text-transform: uppercase; }
 
         /* Small History Rail */
         .history-rail { display: flex; gap: 5px; overflow-x: auto; padding: 10px; background: #000; border-radius: 5px; margin-top: 10px; font-size: 0.8rem; min-height: 20px;}
@@ -48,7 +54,7 @@
 
     <div class="flex-row">
         <div class="panel">
-            <h3>Input History</h3>
+            <h3>Input History <span id="dataCount" style="font-size: 0.9rem; color: #888; font-weight: normal;">(0/70 numbers)</span></h3>
             <div id="board" class="board">
                 <div class="cell n0" onclick="inputResult(0)">0</div>
             </div>
@@ -60,9 +66,8 @@
         <div class="panel">
             <div id="signal" class="signal-box">STANDBY</div>
             <div id="display" class="prediction-area">
-                <p>Awaiting Data Analysis...</p>
+                <p>Awaiting Data Analysis (Requires 70+ numbers)...</p>
             </div>
-            <div id="streakDisplay" class="streak-container"></div>
         </div>
     </div>
 </div>
@@ -70,11 +75,22 @@
 <script>
     const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
     const REDS = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+    const MIN_REQUIRED_DATA = 70;
+    
     let history = [];
-    let streaks = [];
-    let lastPredictedSector = [];
+    let lastBestCenter = null; 
 
-    // Init Board
+    // Sector statistics tracker organized by sector center item
+    let sectorStats = {};
+    WHEEL.forEach(num => {
+        sectorStats[num] = {
+            streaks: [],
+            totalPredictions: 0,
+            totalHits: 0
+        };
+    });
+
+    // Init Board Setup
     const board = document.getElementById('board');
     const rows = [[3,6,9,12,15,18,21,24,27,30,33,36],[2,5,8,11,14,17,20,23,26,29,32,35],[1,4,7,10,13,16,19,22,25,28,31,34]];
     rows.forEach(r => r.forEach(n => {
@@ -82,10 +98,23 @@
     }));
 
     function inputResult(n) {
-        if (lastPredictedSector.length > 0) {
-            streaks.push(lastPredictedSector.includes(n) ? "W" : "L");
-            if (streaks.length > 8) streaks.shift();
+        // Evaluate accuracy of the previous round's prediction if data threshold is met
+        if (history.length >= MIN_REQUIRED_DATA && lastBestCenter !== null) {
+            let predictedSectorNums = getSector(lastBestCenter);
+            let outcome = predictedSectorNums.includes(n) ? "W" : "L";
+            
+            sectorStats[lastBestCenter].streaks.push(outcome);
+            sectorStats[lastBestCenter].totalPredictions++;
+            if (outcome === "W") {
+                sectorStats[lastBestCenter].totalHits++;
+            }
+            
+            // Constrain rolling streak track to the last 8 entries
+            if (sectorStats[lastBestCenter].streaks.length > 8) {
+                sectorStats[lastBestCenter].streaks.shift();
+            }
         }
+
         history.push(n);
         updateHistoryRail();
         processLogic();
@@ -94,14 +123,27 @@
     function importBulk() {
         const val = document.getElementById('bulk').value;
         const nums = val.split(/[ ,]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
-        history = [...history, ...nums];
-        updateHistoryRail();
-        processLogic();
+        
+        // Feed numbers sequentially to preserve accurate historical simulation tracking
+        nums.forEach(n => {
+            inputResult(n);
+        });
+
         document.getElementById('bulk').value = '';
     }
 
     function updateHistoryRail() {
         const rail = document.getElementById('historyRail');
+        const countDisplay = document.getElementById('dataCount');
+        
+        // Update history sample counter UI
+        countDisplay.innerText = `(${history.length}/${MIN_REQUIRED_DATA} numbers)`;
+        if (history.length >= MIN_REQUIRED_DATA) {
+            countDisplay.style.color = '#27ae60';
+        } else {
+            countDisplay.style.color = '#e74c3c';
+        }
+
         const last10 = history.slice(-10).reverse();
         rail.innerHTML = last10.map(n => `<span style="color:${n===0?'#27ae60':(REDS.includes(n)?'#e74c3c':'#fff')}">${n}</span>`).join(' | ');
     }
@@ -116,7 +158,6 @@
     }
 
     function calculateWeightedRate(sectorNums) {
-        if (history.length < 5) return 0;
         let score = 0;
         const recent30 = history.slice(-30);
         const olderData = history.slice(0, -30);
@@ -128,7 +169,24 @@
     }
 
     function processLogic() {
-        if (history.length === 0) return;
+        const signal = document.getElementById('signal');
+        const disp = document.getElementById('display');
+
+        // Check hard requirement for minimum of 70 items before processing
+        if (history.length < MIN_REQUIRED_DATA) {
+            signal.className = "signal-box wait";
+            signal.innerText = "STANDBY";
+            disp.innerHTML = `
+                <div style="padding: 20px; color: #888;">
+                    <p style="font-weight: bold; color: var(--gold);">DATA CAPTURE MODE</p>
+                    <p>Processing requires at least <strong>${MIN_REQUIRED_DATA}</strong> past spins.</p>
+                    <p>Current count: <span style="font-size: 1.2rem; color: #fff; font-weight: bold;">${history.length}</span></p>
+                    <progress value="${history.length}" max="${MIN_REQUIRED_DATA}" style="width: 80%; margin-top: 10px;"></progress>
+                </div>
+            `;
+            return;
+        }
+
         const lastNum = history[history.length - 1];
         let triggerZone = getSector(lastNum);
         let bestCenter = triggerZone[0];
@@ -142,17 +200,24 @@
             }
         });
 
-        lastPredictedSector = getSector(bestCenter);
+        lastBestCenter = bestCenter; 
         render(lastNum, bestCenter, highestRate);
     }
 
     function render(last, best, rate) {
         const signal = document.getElementById('signal');
         const disp = document.getElementById('display');
-        const streakBox = document.getElementById('streakDisplay');
 
-        const winCount = streaks.filter(s => s === 'W').length;
-        const isHot = rate > 0.35 || (winCount >= 3 && rate > 0.25);
+        const currentSectorData = sectorStats[best];
+        const currentStreaks = currentSectorData.streaks;
+        
+        let sectorHitPercentage = 0;
+        if (currentSectorData.totalPredictions > 0) {
+            sectorHitPercentage = Math.round((currentSectorData.totalHits / currentSectorData.totalPredictions) * 100);
+        }
+
+        const recentWCount = currentStreaks.filter(s => s === 'W').length;
+        const isHot = rate > 0.35 || (recentWCount >= 3 && rate > 0.25);
 
         if (isHot) {
             signal.className = "signal-box bet";
@@ -162,7 +227,9 @@
             signal.innerText = "WAITING FOR PATTERN";
         }
 
-        streakBox.innerHTML = streaks.map(s => `<div class="streak-item ${s}">${s}</div>`).join('');
+        const streaksHtml = currentStreaks.length > 0 
+            ? currentStreaks.map(s => `<div class="streak-item ${s}">${s}</div>`).join('')
+            : `<span style="color:#666; font-size:0.8rem; font-style:italic;">No track history yet</span>`;
 
         disp.innerHTML = `
             <div style="font-size:0.8rem; color:#888; margin-bottom:5px;">LAST RESULT ENTERED</div>
@@ -171,10 +238,23 @@
             <div style="font-size:0.8rem; color:#888; margin-top:10px;">PREDICTED SECTOR CENTER</div>
             <div class="target-num">${best}</div>
             
-            <div style="color:var(--gold); font-weight:bold;">Weighted Momentum: ${(rate * 100).toFixed(0)}</div>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-val">${(rate * 100).toFixed(0)}</div>
+                    <div class="stat-lbl">Weighted Momentum</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val">${sectorHitPercentage}%</div>
+                    <div class="stat-lbl">Sector Hit Rate</div>
+                </div>
+            </div>
+
+            <div style="font-size:0.75rem; color:#888; margin-bottom:5px; text-transform:uppercase;">Sector Streak (Last 8)</div>
+            <div class="streak-container">${streaksHtml}</div>
+
             <div class="sector-list">
                 <div style="color:#555; font-size:0.7rem; margin-bottom:5px;">COVER THESE NUMBERS:</div>
-                ${lastPredictedSector.join(' ')}
+                ${getSector(best).join(' ')}
             </div>
         `;
     }
