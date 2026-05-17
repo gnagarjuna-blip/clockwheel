@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Professional Sector Analyzer & Simulator</title>
+    <title>Professional Sector Analyzer & Financial Simulator</title>
     <style>
         :root { --green: #27ae60; --red: #c0392b; --black: #1a1a1a; --gold: #f1c40f; --blue: #3498db; --purple: #8e44ad;}
         body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #eee; margin: 20px; }
-        .container { max-width: 1100px; margin: auto; }
+        .container { max-width: 1200px; margin: auto; }
         .flex-row { display: flex; gap: 20px; flex-wrap: wrap; }
         .panel { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; flex: 1; min-width: 350px; }
 
@@ -37,10 +37,17 @@
         /* Small History Rail */
         .history-rail { display: flex; gap: 5px; overflow-x: auto; padding: 10px; background: #000; border-radius: 5px; margin-top: 10px; font-size: 0.8rem; min-height: 20px;}
 
+        /* Setup Forms */
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .config-group { display: flex; flex-direction: column; }
+        .config-group label { font-size: 0.8rem; color: #aaa; margin-bottom: 4px; }
+        .config-group input { background: #000; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px; }
+
         /* Metrics Box */
-        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; text-align: center; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; text-align: center; }
         .metric-card { background: #111; padding: 10px; border-radius: 6px; border: 1px solid #444; }
-        .metric-val { font-size: 1.5rem; font-weight: bold; color: var(--gold); }
+        .metric-val { font-size: 1.3rem; font-weight: bold; color: var(--gold); }
+        .full-width { grid-column: span 2; }
 
         textarea { width: 100%; height: 80px; background: #000; color: var(--gold); border: 1px solid #444; margin-top: 10px; padding: 10px; border-radius: 5px; box-sizing: border-box;}
         button { width: 100%; padding: 12px; margin-top: 10px; background: var(--blue); color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
@@ -50,17 +57,37 @@
 <body>
 
 <div class="container">
-    <h2 style="color: var(--gold);">Confirm-Bet Sector Tracker & Simulator</h2>
+    <h2 style="color: var(--gold);">Confirm-Bet Sector Tracker & Financial Simulator</h2>
 
     <div class="flex-row">
         <div class="panel">
+            <h3>Simulation Settings</h3>
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>Starting Bankroll ($)</label>
+                    <input type="number" id="initBankroll" value="1000">
+                </div>
+                <div class="config-group">
+                    <label>Base Unit Size ($)</label>
+                    <input type="number" id="baseUnit" value="1">
+                </div>
+                <div class="config-group">
+                    <label>On Loss Increase (Units)</label>
+                    <input type="number" id="lossProg" value="1">
+                </div>
+                <div class="config-group">
+                    <label>On Win Decrease (Units)</label>
+                    <input type="number" id="winReg" value="2">
+                </div>
+            </div>
+
             <h3>Input History (Top = Latest)</h3>
             <div id="board" class="board">
                 <div class="cell n0" onclick="inputResult(0)">0</div>
             </div>
             <textarea id="bulk" placeholder="Paste numbers here (Top is newest, Bottom is oldest)..."></textarea>
             <button onclick="importBulk()">Initialize with Data</button>
-            <button class="sim-btn" onclick="runSimulation()">Run Historical Simulation</button>
+            <button class="sim-btn" onclick="runSimulation()">Run Financial Simulation</button>
             <div id="historyRail" class="history-rail"></div>
         </div>
 
@@ -72,6 +99,18 @@
             <div id="streakDisplay" class="streak-container" style="margin-top: 15px;"></div>
             
             <div class="metrics-grid">
+                <div class="metric-card full-width" style="background: #1a1a1a;">
+                    <div style="font-size: 0.8rem; color: #aaa;">CURRENT BANKROLL BALANCE</div>
+                    <div id="currentBalance" class="metric-val" style="font-size: 2rem; color: #2cc76b;">$0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div style="font-size: 0.75rem; color: #888;">MAX PEAK BALANCE</div>
+                    <div id="maxProfit" class="metric-val" style="color:#27ae60;">$0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div style="font-size: 0.75rem; color: #888;">MAX DRAWDOWN</div>
+                    <div id="maxDrawdown" class="metric-val" style="color:#c0392b;">$0.00</div>
+                </div>
                 <div class="metric-card">
                     <div style="font-size: 0.75rem; color: #888;">MAX WIN STREAK</div>
                     <div id="maxWinStreak" class="metric-val">0</div>
@@ -79,6 +118,10 @@
                 <div class="metric-card">
                     <div style="font-size: 0.75rem; color: #888;">MAX LOSS STREAK</div>
                     <div id="maxLossStreak" class="metric-val">0</div>
+                </div>
+                <div class="metric-card full-width">
+                    <div style="font-size: 0.75rem; color: #888;">NEXT BET REQUIRED</div>
+                    <div id="nextBetDisplay" class="metric-val" style="color: #3498db;">0 Units</div>
                 </div>
             </div>
         </div>
@@ -92,7 +135,22 @@
     let streaks = [];
     let lastPredictedSector = [];
 
-    // Historical record max calculations
+    // Strategy Execution Parameters
+    let isConfirmedSignalActive = false;
+
+    // Financial Metrics
+    let bankroll = 0;
+    let initialBankrollSetting = 0;
+    let baseUnitVal = 1;
+    let unitMultiplier = 1; 
+    let lossProgressionStep = 1;
+    let winRegressionStep = 2;
+
+    let peakBalance = 0;
+    let maximumDrawdown = 0;
+    let isBankruptcyEncountered = false;
+
+    // Streak Metrics
     let maxWinStreak = 0;
     let maxLossStreak = 0;
     let currentWinStreak = 0;
@@ -124,17 +182,50 @@
         if (lastPredictedSector.length > 0) {
             let outcome = lastPredictedSector.includes(n) ? "W" : "L";
             trackStreaks(outcome);
+            
+            // Apply progression math if previous step was an active signal bet
+            if (isConfirmedSignalActive && !isBankruptcyEncountered) {
+                processFinancialOutcome(outcome);
+            }
         }
         history.push(n);
         updateHistoryRail();
         processLogic();
     }
 
-    // Parses paste window. Reverses order so that top element parsed serves as the most recent additions.
+    function processFinancialOutcome(outcome) {
+        // Sector coverage contains 15 numbers total out of 37
+        const totalNumbersCovered = 15;
+        const totalBetCost = unitMultiplier * baseUnitVal * totalNumbersCovered;
+
+        if (bankroll < totalBetCost) {
+            isBankruptcyEncountered = true;
+            return;
+        }
+
+        bankroll -= totalBetCost;
+
+        if (outcome === "W") {
+            // Straight up win payout structure is 35 to 1 (plus return of winning unit)
+            const winPayout = (unitMultiplier * baseUnitVal) * 36;
+            bankroll += winPayout;
+
+            // Step down unit stake system on winning outcomes
+            unitMultiplier = Math.max(1, unitMultiplier - winRegressionStep);
+        } else {
+            // Step up unit stake system on losing outcomes
+            unitMultiplier += lossProgressionStep;
+        }
+
+        // Track Peak and Drawdowns
+        if (bankroll > peakBalance) peakBalance = bankroll;
+        let currentDrawdown = peakBalance - bankroll;
+        if (currentDrawdown > maximumDrawdown) maximumDrawdown = currentDrawdown;
+    }
+
     function parseBulkInput() {
         const val = document.getElementById('bulk').value;
         const nums = val.split(/[ ,/\n\r]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
-        // Reverse array direction: items listed first (at the top) now processed last (newest data)
         return nums.reverse();
     }
 
@@ -148,12 +239,11 @@
         document.getElementById('bulk').value = '';
     }
 
-    // Resets streak metrics and plays back dataset progressively to see strategy tracking in real-time
     function runSimulation() {
         const structuralNums = parseBulkInput();
         if(structuralNums.length === 0) return;
 
-        // Reset tracking boards for accurate historical simulation run
+        // Reset tracking boards & inject input configuration matrices
         history = [];
         streaks = [];
         lastPredictedSector = [];
@@ -162,15 +252,32 @@
         currentWinStreak = 0;
         currentLossStreak = 0;
 
+        // Initialize user defined balance modules
+        initialBankrollSetting = parseFloat(document.getElementById('initBankroll').value) || 1000;
+        bankroll = initialBankrollSetting;
+        baseUnitVal = parseFloat(document.getElementById('baseUnit').value) || 1;
+        lossProgressionStep = parseInt(document.getElementById('lossProg').value) || 1;
+        winRegressionStep = parseInt(document.getElementById('winReg').value) || 2;
+        
+        unitMultiplier = 1;
+        peakBalance = bankroll;
+        maximumDrawdown = 0;
+        isBankruptcyEncountered = false;
+
         structuralNums.forEach(n => {
+            if (isBankruptcyEncountered) return;
+
             if (lastPredictedSector.length > 0) {
                 let outcome = lastPredictedSector.includes(n) ? "W" : "L";
                 trackStreaks(outcome);
+                
+                if (isConfirmedSignalActive) {
+                    processFinancialOutcome(outcome);
+                }
             }
-            history.push(n);
             
-            // Runs underlying engine calculation line-by-line 
-            processLogic(); 
+            history.push(n);
+            processLogic(); // Sets `isConfirmedSignalActive` flag dynamically for the next round
         });
 
         updateHistoryRail();
@@ -193,7 +300,7 @@
     }
 
     function calculateWeightedRate(sectorNums) {
-        if (history.length < 15) return 0;
+        if (history.length < 5) return 0;
         let score = 0;
         const recent30 = history.slice(-30);
         const olderData = history.slice(0, -30);
@@ -219,8 +326,11 @@
             }
         });
 
+        // Evaluate Signal Activation
+        const winCount = streaks.filter(s => s === 'W').length;
+        isConfirmedSignalActive = highestRate > 0.35 || (winCount >= 3 && highestRate > 0.25);
+
         render(lastNum, bestCenter, highestRate);
-        // Important: cache prediction vector *after* rendering so next upcoming number matches against it.
         lastPredictedSector = getSector(bestCenter); 
     }
 
@@ -229,10 +339,7 @@
         const disp = document.getElementById('display');
         const streakBox = document.getElementById('streakDisplay');
 
-        const winCount = streaks.filter(s => s === 'W').length;
-        const isHot = rate > 0.35 || (winCount >= 3 && rate > 0.25);
-
-        if (isHot) {
+        if (isConfirmedSignalActive) {
             signal.className = "signal-box bet";
             signal.innerText = "CONFIRMED SIGNAL: BET";
         } else {
@@ -242,8 +349,26 @@
 
         streakBox.innerHTML = streaks.map(s => `<div class="streak-item ${s}">${s}</div>`).join('');
         
+        // Render Metric Values
         document.getElementById('maxWinStreak').innerText = maxWinStreak;
         document.getElementById('maxLossStreak').innerText = maxLossStreak;
+        document.getElementById('maxProfit').innerText = `$${(peakBalance - initialBankrollSetting).toFixed(2)}`;
+        document.getElementById('maxDrawdown').innerText = `-$${maximumDrawdown.toFixed(2)}`;
+        
+        const nextTotalBetAmount = unitMultiplier * baseUnitVal * 15;
+        document.getElementById('nextBetDisplay').innerText = isConfirmedSignalActive 
+            ? `${unitMultiplier} Unit(s) ($${nextTotalBetAmount.toFixed(2)})` 
+            : "0 Units (Standby)";
+
+        if (isBankruptcyEncountered || (isConfirmedSignalActive && bankroll < nextTotalBetAmount)) {
+            document.getElementById('currentBalance').innerText = "INSUFFICIENT BALANCE";
+            document.getElementById('currentBalance').style.color = "var(--red)";
+            signal.className = "signal-box wait";
+            signal.innerText = "SIMULATION TERMINATED";
+        } else {
+            document.getElementById('currentBalance').innerText = `$${bankroll.toFixed(2)}`;
+            document.getElementById('currentBalance').style.color = "#2cc76b";
+        }
 
         disp.innerHTML = `
             <div style="font-size:0.8rem; color:#888; margin-bottom:5px;">LAST RESULT ENTERED</div>
@@ -252,7 +377,7 @@
             <div style="font-size:0.8rem; color:#888; margin-top:10px;">PREDICTED SECTOR CENTER</div>
             <div class="target-num">${best}</div>
             
-            <div style="color:var(--gold); font-weight:bold;">Weighted Momentum: ${(rate * 100).toFixed(0)}</div>
+            <div style="color:var(--gold); font-weight:bold;">Weighted Momentum: ${(rate * 100).toFixed(0)}%</div>
             <div class="sector-list">
                 <div style="color:#555; font-size:0.7rem; margin-bottom:5px;">COVER THESE NUMBERS:</div>
                 ${getSector(best).join(' ')}
