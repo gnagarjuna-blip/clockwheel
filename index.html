@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Professional Sector Analyzer & Financial Simulator</title>
+    <title>Professional Sector Analyzer & Financial Tracker</title>
     <style>
         :root { --green: #27ae60; --red: #c0392b; --black: #1a1a1a; --gold: #f1c40f; --blue: #3498db; --purple: #8e44ad;}
         body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #eee; margin: 20px; }
@@ -52,20 +52,21 @@
         textarea { width: 100%; height: 80px; background: #000; color: var(--gold); border: 1px solid #444; margin-top: 10px; padding: 10px; border-radius: 5px; box-sizing: border-box;}
         button { width: 100%; padding: 12px; margin-top: 10px; background: var(--blue); color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
         button.sim-btn { background: var(--purple); }
+        button.reset-btn { background: #555; margin-top: 5px; padding: 6px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 style="color: var(--gold);">Confirm-Bet Sector Tracker & Financial Simulator</h2>
+    <h2 style="color: var(--gold);">Confirm-Bet Sector Tracker & Live Progression Engine</h2>
 
     <div class="flex-row">
         <div class="panel">
-            <h3>Simulation Settings</h3>
+            <h3>Session & Bankroll Configuration</h3>
             <div class="config-grid">
                 <div class="config-group">
                     <label>Starting Bankroll ($)</label>
-                    <input type="number" id="initBankroll" value="1000">
+                    <input type="number" id="initBankroll" value="1000" onchange="initializeFinancials ifNotActive()">
                 </div>
                 <div class="config-group">
                     <label>Base Unit Size ($)</label>
@@ -80,13 +81,16 @@
                     <input type="number" id="winReg" value="2">
                 </div>
             </div>
+            <button class="reset-btn" onclick="resetSession()">Reset Metrics & Bankroll</button>
 
-            <h3>Input History (Top = Latest)</h3>
+            <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
+
+            <h3>Input History (Top = Latest / Click to enter Live)</h3>
             <div id="board" class="board">
                 <div class="cell n0" onclick="inputResult(0)">0</div>
             </div>
             <textarea id="bulk" placeholder="Paste numbers here (Top is newest, Bottom is oldest)..."></textarea>
-            <button onclick="importBulk()">Initialize with Data</button>
+            <button onclick="importBulk()">Initialize with Data (As Block)</button>
             <button class="sim-btn" onclick="runSimulation()">Run Financial Simulation</button>
             <div id="historyRail" class="history-rail"></div>
         </div>
@@ -101,10 +105,10 @@
             <div class="metrics-grid">
                 <div class="metric-card full-width" style="background: #1a1a1a;">
                     <div style="font-size: 0.8rem; color: #aaa;">CURRENT BANKROLL BALANCE</div>
-                    <div id="currentBalance" class="metric-val" style="font-size: 2rem; color: #2cc76b;">$0.00</div>
+                    <div id="currentBalance" class="metric-val" style="font-size: 2rem; color: #2cc76b;">$1,000.00</div>
                 </div>
                 <div class="metric-card">
-                    <div style="font-size: 0.75rem; color: #888;">MAX PEAK BALANCE</div>
+                    <div style="font-size: 0.75rem; color: #888;">MAX PEAK REVENUE</div>
                     <div id="maxProfit" class="metric-val" style="color:#27ae60;">$0.00</div>
                 </div>
                 <div class="metric-card">
@@ -120,7 +124,7 @@
                     <div id="maxLossStreak" class="metric-val">0</div>
                 </div>
                 <div class="metric-card full-width">
-                    <div style="font-size: 0.75rem; color: #888;">NEXT BET REQUIRED</div>
+                    <div style="font-size: 0.75rem; color: #888;">NEXT BET COST (15 NUMBERS)</div>
                     <div id="nextBetDisplay" class="metric-val" style="color: #3498db;">0 Units</div>
                 </div>
             </div>
@@ -135,33 +139,68 @@
     let streaks = [];
     let lastPredictedSector = [];
 
-    // Strategy Execution Parameters
+    // State Status Flags
     let isConfirmedSignalActive = false;
+    let financialsInitialized = false;
 
-    // Financial Metrics
-    let bankroll = 0;
-    let initialBankrollSetting = 0;
+    // Core Financial Parameters
+    let bankroll = 1000;
+    let initialBankrollSetting = 1000;
     let baseUnitVal = 1;
     let unitMultiplier = 1; 
     let lossProgressionStep = 1;
     let winRegressionStep = 2;
 
-    let peakBalance = 0;
+    let peakBalance = 1000;
     let maximumDrawdown = 0;
     let isBankruptcyEncountered = false;
 
-    // Streak Metrics
+    // Streak Parameters
     let maxWinStreak = 0;
     let maxLossStreak = 0;
     let currentWinStreak = 0;
     let currentLossStreak = 0;
 
-    // Init Board
+    // Init Board Layout
     const board = document.getElementById('board');
     const rows = [[3,6,9,12,15,18,21,24,27,30,33,36],[2,5,8,11,14,17,20,23,26,29,32,35],[1,4,7,10,13,16,19,22,25,28,31,34]];
     rows.forEach(r => r.forEach(n => {
         board.innerHTML += `<div class="cell ${REDS.includes(n)?'nRed':'nBlack'}" onclick="inputResult(${n})">${n}</div>`;
     }));
+
+    function syncInputs() {
+        if (!financialsInitialized) {
+            initialBankrollSetting = parseFloat(document.getElementById('initBankroll').value) || 1000;
+            bankroll = initialBankrollSetting;
+            peakBalance = bankroll;
+            financialsInitialized = true;
+        }
+        baseUnitVal = parseFloat(document.getElementById('baseUnit').value) || 1;
+        lossProgressionStep = parseInt(document.getElementById('lossProg').value) || 1;
+        winRegressionStep = parseInt(document.getElementById('winReg').value) || 2;
+    }
+
+    function resetSession() {
+        history = [];
+        streaks = [];
+        lastPredictedSector = [];
+        maxWinStreak = 0;
+        maxLossStreak = 0;
+        currentWinStreak = 0;
+        currentLossStreak = 0;
+        unitMultiplier = 1;
+        maximumDrawdown = 0;
+        isBankruptcyEncountered = false;
+        financialsInitialized = false;
+        
+        syncInputs();
+        
+        document.getElementById('historyRail').innerHTML = '';
+        document.getElementById('signal').className = "signal-box standby";
+        document.getElementById('signal').innerText = "STANDBY";
+        document.getElementById('display').innerHTML = "<p>Awaiting Data Analysis...</p>";
+        updateFinancialDisplay();
+    }
 
     function trackStreaks(outcome) {
         streaks.push(outcome);
@@ -178,13 +217,17 @@
         }
     }
 
+    // Handles logic for both LIVE normal mode clicking and processing simulations
     function inputResult(n) {
+        if (isBankruptcyEncountered) return;
+        syncInputs();
+
         if (lastPredictedSector.length > 0) {
             let outcome = lastPredictedSector.includes(n) ? "W" : "L";
             trackStreaks(outcome);
             
-            // Apply progression math if previous step was an active signal bet
-            if (isConfirmedSignalActive && !isBankruptcyEncountered) {
+            // Execute automated betting accounting system if a signal was triggered
+            if (isConfirmedSignalActive) {
                 processFinancialOutcome(outcome);
             }
         }
@@ -194,7 +237,6 @@
     }
 
     function processFinancialOutcome(outcome) {
-        // Sector coverage contains 15 numbers total out of 37
         const totalNumbersCovered = 15;
         const totalBetCost = unitMultiplier * baseUnitVal * totalNumbersCovered;
 
@@ -206,18 +248,16 @@
         bankroll -= totalBetCost;
 
         if (outcome === "W") {
-            // Straight up win payout structure is 35 to 1 (plus return of winning unit)
             const winPayout = (unitMultiplier * baseUnitVal) * 36;
             bankroll += winPayout;
-
-            // Step down unit stake system on winning outcomes
+            // Strategy rule: Regression shift down on successful win hit
             unitMultiplier = Math.max(1, unitMultiplier - winRegressionStep);
         } else {
-            // Step up unit stake system on losing outcomes
+            // Strategy rule: Progression step up on a missed loss streak
             unitMultiplier += lossProgressionStep;
         }
 
-        // Track Peak and Drawdowns
+        // Analytics Peak tracking
         if (bankroll > peakBalance) peakBalance = bankroll;
         let currentDrawdown = peakBalance - bankroll;
         if (currentDrawdown > maximumDrawdown) maximumDrawdown = currentDrawdown;
@@ -226,7 +266,7 @@
     function parseBulkInput() {
         const val = document.getElementById('bulk').value;
         const nums = val.split(/[ ,/\n\r]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
-        return nums.reverse();
+        return nums.reverse(); // Reverse system: converts top layout inputs to match processing arrays
     }
 
     function importBulk() {
@@ -243,44 +283,13 @@
         const structuralNums = parseBulkInput();
         if(structuralNums.length === 0) return;
 
-        // Reset tracking boards & inject input configuration matrices
-        history = [];
-        streaks = [];
-        lastPredictedSector = [];
-        maxWinStreak = 0;
-        maxLossStreak = 0;
-        currentWinStreak = 0;
-        currentLossStreak = 0;
-
-        // Initialize user defined balance modules
-        initialBankrollSetting = parseFloat(document.getElementById('initBankroll').value) || 1000;
-        bankroll = initialBankrollSetting;
-        baseUnitVal = parseFloat(document.getElementById('baseUnit').value) || 1;
-        lossProgressionStep = parseInt(document.getElementById('lossProg').value) || 1;
-        winRegressionStep = parseInt(document.getElementById('winReg').value) || 2;
-        
-        unitMultiplier = 1;
-        peakBalance = bankroll;
-        maximumDrawdown = 0;
-        isBankruptcyEncountered = false;
+        resetSession(); // Refresh balance configuration properties to base zero before tracking data block
 
         structuralNums.forEach(n => {
             if (isBankruptcyEncountered) return;
-
-            if (lastPredictedSector.length > 0) {
-                let outcome = lastPredictedSector.includes(n) ? "W" : "L";
-                trackStreaks(outcome);
-                
-                if (isConfirmedSignalActive) {
-                    processFinancialOutcome(outcome);
-                }
-            }
-            
-            history.push(n);
-            processLogic(); // Sets `isConfirmedSignalActive` flag dynamically for the next round
+            inputResult(n);
         });
 
-        updateHistoryRail();
         document.getElementById('bulk').value = '';
     }
 
@@ -300,7 +309,7 @@
     }
 
     function calculateWeightedRate(sectorNums) {
-        if (history.length < 5) return 0;
+        if (history.length < 15) return 0;
         let score = 0;
         const recent30 = history.slice(-30);
         const olderData = history.slice(0, -30);
@@ -326,7 +335,6 @@
             }
         });
 
-        // Evaluate Signal Activation
         const winCount = streaks.filter(s => s === 'W').length;
         isConfirmedSignalActive = highestRate > 0.35 || (winCount >= 3 && highestRate > 0.25);
 
@@ -334,25 +342,10 @@
         lastPredictedSector = getSector(bestCenter); 
     }
 
-    function render(last, best, rate) {
-        const signal = document.getElementById('signal');
-        const disp = document.getElementById('display');
-        const streakBox = document.getElementById('streakDisplay');
-
-        if (isConfirmedSignalActive) {
-            signal.className = "signal-box bet";
-            signal.innerText = "CONFIRMED SIGNAL: BET";
-        } else {
-            signal.className = "signal-box wait";
-            signal.innerText = "WAITING FOR PATTERN";
-        }
-
-        streakBox.innerHTML = streaks.map(s => `<div class="streak-item ${s}">${s}</div>`).join('');
-        
-        // Render Metric Values
+    function updateFinancialDisplay() {
         document.getElementById('maxWinStreak').innerText = maxWinStreak;
         document.getElementById('maxLossStreak').innerText = maxLossStreak;
-        document.getElementById('maxProfit').innerText = `$${(peakBalance - initialBankrollSetting).toFixed(2)}`;
+        document.getElementById('maxProfit').innerText = `$${Math.max(0, peakBalance - initialBankrollSetting).toFixed(2)}`;
         document.getElementById('maxDrawdown').innerText = `-$${maximumDrawdown.toFixed(2)}`;
         
         const nextTotalBetAmount = unitMultiplier * baseUnitVal * 15;
@@ -361,14 +354,35 @@
             : "0 Units (Standby)";
 
         if (isBankruptcyEncountered || (isConfirmedSignalActive && bankroll < nextTotalBetAmount)) {
+            isBankruptcyEncountered = true;
             document.getElementById('currentBalance').innerText = "INSUFFICIENT BALANCE";
             document.getElementById('currentBalance').style.color = "var(--red)";
-            signal.className = "signal-box wait";
-            signal.innerText = "SIMULATION TERMINATED";
+            document.getElementById('signal').className = "signal-box wait";
+            document.getElementById('signal').innerText = "SESSION STOPPED (BANKRUPT)";
         } else {
             document.getElementById('currentBalance').innerText = `$${bankroll.toFixed(2)}`;
             document.getElementById('currentBalance').style.color = "#2cc76b";
         }
+    }
+
+    function render(last, best, rate) {
+        const signal = document.getElementById('signal');
+        const disp = document.getElementById('display');
+        const streakBox = document.getElementById('streakDisplay');
+
+        if (!isBankruptcyEncountered) {
+            if (isConfirmedSignalActive) {
+                signal.className = "signal-box bet";
+                signal.innerText = "CONFIRMED SIGNAL: BET";
+            } else {
+                signal.className = "signal-box wait";
+                signal.innerText = "WAITING FOR PATTERN";
+            }
+        }
+
+        streakBox.innerHTML = streaks.map(s => `<div class="streak-item ${s}">${s}</div>`).join('');
+        
+        updateFinancialDisplay();
 
         disp.innerHTML = `
             <div style="font-size:0.8rem; color:#888; margin-bottom:5px;">LAST RESULT ENTERED</div>
