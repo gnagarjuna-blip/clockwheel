@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Professional Sector Analyzer</title>
+    <title>Professional Sector Analyzer & Simulator</title>
     <style>
-        :root { --green: #27ae60; --red: #c0392b; --black: #1a1a1a; --gold: #f1c40f; --blue: #3498db; }
+        :root { --green: #27ae60; --red: #c0392b; --black: #1a1a1a; --gold: #f1c40f; --blue: #3498db; --purple: #8e44ad;}
         body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #eee; margin: 20px; }
         .container { max-width: 1100px; margin: auto; }
         .flex-row { display: flex; gap: 20px; flex-wrap: wrap; }
@@ -37,23 +37,30 @@
         /* Small History Rail */
         .history-rail { display: flex; gap: 5px; overflow-x: auto; padding: 10px; background: #000; border-radius: 5px; margin-top: 10px; font-size: 0.8rem; min-height: 20px;}
 
+        /* Metrics Box */
+        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; text-align: center; }
+        .metric-card { background: #111; padding: 10px; border-radius: 6px; border: 1px solid #444; }
+        .metric-val { font-size: 1.5rem; font-weight: bold; color: var(--gold); }
+
         textarea { width: 100%; height: 80px; background: #000; color: var(--gold); border: 1px solid #444; margin-top: 10px; padding: 10px; border-radius: 5px; box-sizing: border-box;}
         button { width: 100%; padding: 12px; margin-top: 10px; background: var(--blue); color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        button.sim-btn { background: var(--purple); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 style="color: var(--gold);">Confirm-Bet Sector Tracker (Recency Weighted)</h2>
+    <h2 style="color: var(--gold);">Confirm-Bet Sector Tracker & Simulator</h2>
 
     <div class="flex-row">
         <div class="panel">
-            <h3>Input History</h3>
+            <h3>Input History (Top = Latest)</h3>
             <div id="board" class="board">
                 <div class="cell n0" onclick="inputResult(0)">0</div>
             </div>
-            <textarea id="bulk" placeholder="Paste 150-200 numbers here..."></textarea>
+            <textarea id="bulk" placeholder="Paste numbers here (Top is newest, Bottom is oldest)..."></textarea>
             <button onclick="importBulk()">Initialize with Data</button>
+            <button class="sim-btn" onclick="runSimulation()">Run Historical Simulation</button>
             <div id="historyRail" class="history-rail"></div>
         </div>
 
@@ -62,7 +69,18 @@
             <div id="display" class="prediction-area">
                 <p>Awaiting Data Analysis...</p>
             </div>
-            <div id="streakDisplay" class="streak-container"></div>
+            <div id="streakDisplay" class="streak-container" style="margin-top: 15px;"></div>
+            
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div style="font-size: 0.75rem; color: #888;">MAX WIN STREAK</div>
+                    <div id="maxWinStreak" class="metric-val">0</div>
+                </div>
+                <div class="metric-card">
+                    <div style="font-size: 0.75rem; color: #888;">MAX LOSS STREAK</div>
+                    <div id="maxLossStreak" class="metric-val">0</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -74,6 +92,12 @@
     let streaks = [];
     let lastPredictedSector = [];
 
+    // Historical record max calculations
+    let maxWinStreak = 0;
+    let maxLossStreak = 0;
+    let currentWinStreak = 0;
+    let currentLossStreak = 0;
+
     // Init Board
     const board = document.getElementById('board');
     const rows = [[3,6,9,12,15,18,21,24,27,30,33,36],[2,5,8,11,14,17,20,23,26,29,32,35],[1,4,7,10,13,16,19,22,25,28,31,34]];
@@ -81,22 +105,75 @@
         board.innerHTML += `<div class="cell ${REDS.includes(n)?'nRed':'nBlack'}" onclick="inputResult(${n})">${n}</div>`;
     }));
 
+    function trackStreaks(outcome) {
+        streaks.push(outcome);
+        if (streaks.length > 8) streaks.shift();
+
+        if (outcome === "W") {
+            currentWinStreak++;
+            currentLossStreak = 0;
+            if (currentWinStreak > maxWinStreak) maxWinStreak = currentWinStreak;
+        } else {
+            currentLossStreak++;
+            currentWinStreak = 0;
+            if (currentLossStreak > maxLossStreak) maxLossStreak = currentLossStreak;
+        }
+    }
+
     function inputResult(n) {
         if (lastPredictedSector.length > 0) {
-            streaks.push(lastPredictedSector.includes(n) ? "W" : "L");
-            if (streaks.length > 8) streaks.shift();
+            let outcome = lastPredictedSector.includes(n) ? "W" : "L";
+            trackStreaks(outcome);
         }
         history.push(n);
         updateHistoryRail();
         processLogic();
     }
 
-    function importBulk() {
+    // Parses paste window. Reverses order so that top element parsed serves as the most recent additions.
+    function parseBulkInput() {
         const val = document.getElementById('bulk').value;
-        const nums = val.split(/[ ,]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
-        history = [...history, ...nums];
+        const nums = val.split(/[ ,/\n\r]+/).map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+        // Reverse array direction: items listed first (at the top) now processed last (newest data)
+        return nums.reverse();
+    }
+
+    function importBulk() {
+        const structuralNums = parseBulkInput();
+        if(structuralNums.length === 0) return;
+        
+        history = [...history, ...structuralNums];
         updateHistoryRail();
         processLogic();
+        document.getElementById('bulk').value = '';
+    }
+
+    // Resets streak metrics and plays back dataset progressively to see strategy tracking in real-time
+    function runSimulation() {
+        const structuralNums = parseBulkInput();
+        if(structuralNums.length === 0) return;
+
+        // Reset tracking boards for accurate historical simulation run
+        history = [];
+        streaks = [];
+        lastPredictedSector = [];
+        maxWinStreak = 0;
+        maxLossStreak = 0;
+        currentWinStreak = 0;
+        currentLossStreak = 0;
+
+        structuralNums.forEach(n => {
+            if (lastPredictedSector.length > 0) {
+                let outcome = lastPredictedSector.includes(n) ? "W" : "L";
+                trackStreaks(outcome);
+            }
+            history.push(n);
+            
+            // Runs underlying engine calculation line-by-line 
+            processLogic(); 
+        });
+
+        updateHistoryRail();
         document.getElementById('bulk').value = '';
     }
 
@@ -116,7 +193,7 @@
     }
 
     function calculateWeightedRate(sectorNums) {
-        if (history.length < 5) return 0;
+        if (history.length < 15) return 0;
         let score = 0;
         const recent30 = history.slice(-30);
         const olderData = history.slice(0, -30);
@@ -142,8 +219,9 @@
             }
         });
 
-        lastPredictedSector = getSector(bestCenter);
         render(lastNum, bestCenter, highestRate);
+        // Important: cache prediction vector *after* rendering so next upcoming number matches against it.
+        lastPredictedSector = getSector(bestCenter); 
     }
 
     function render(last, best, rate) {
@@ -163,6 +241,9 @@
         }
 
         streakBox.innerHTML = streaks.map(s => `<div class="streak-item ${s}">${s}</div>`).join('');
+        
+        document.getElementById('maxWinStreak').innerText = maxWinStreak;
+        document.getElementById('maxLossStreak').innerText = maxLossStreak;
 
         disp.innerHTML = `
             <div style="font-size:0.8rem; color:#888; margin-bottom:5px;">LAST RESULT ENTERED</div>
@@ -174,7 +255,7 @@
             <div style="color:var(--gold); font-weight:bold;">Weighted Momentum: ${(rate * 100).toFixed(0)}</div>
             <div class="sector-list">
                 <div style="color:#555; font-size:0.7rem; margin-bottom:5px;">COVER THESE NUMBERS:</div>
-                ${lastPredictedSector.join(' ')}
+                ${getSector(best).join(' ')}
             </div>
         `;
     }
